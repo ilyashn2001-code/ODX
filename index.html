@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Предиктивный анализ ОДХ</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --panel: #ffffff;
+      --panel-2: #f8fafc;
+      --border: #d9e2ec;
+      --text: #102a43;
+      --muted: #627d98;
+      --primary: #0f172a;
+      --primary-2: #1e293b;
+      --accent: #2563eb;
+      --success: #059669;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --low: #94a3b8;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+    button, select, input { font: inherit; }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 20px;
+      padding: 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #ffffff 0%, #eef4ff 100%);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      line-height: 1.1;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      max-width: 900px;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: .2s ease;
+      box-shadow: 0 1px 0 rgba(15,23,42,.02);
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn-accent { background: var(--accent); color: white; border-color: var(--accent); }
+    .btn-soft { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      padding: 18px 20px;
+    }
+
+    .summary-card .label { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+    .summary-card .value { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
+    .summary-card .sub { color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 20px;
+      min-height: 0;
+    }
+
+    .sidebar, .content {
+      display: grid;
+      gap: 20px;
+      min-height: 0;
+    }
+
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .panel-title h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .panel-title p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .stack { display: grid; gap: 12px; }
+
+    .criterion-row,
+    .weight-row,
+    .builder-row {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--panel-2);
+      padding: 14px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary-2);
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: white;
+      border: 1px solid var(--border);
+    }
+
+    .pill.high { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+    .pill.mid { background: #fef3c7; border-color: #fde68a; color: #92400e; }
+    .pill.low { background: #e2e8f0; border-color: #cbd5e1; color: #334155; }
+    .pill.ok { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
+
+    .row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .criterion-text {
+      font-weight: 600;
+      line-height: 1.45;
+    }
+
+    .builder-grid {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr .8fr auto;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .builder-grid-weights {
+      display: grid;
+      grid-template-columns: 1.3fr .6fr auto;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: white;
+      padding: 11px 12px;
+      color: var(--text);
+      outline: none;
+    }
+
+    .btn-mini {
+      border: 1px solid var(--border);
+      background: white;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    .note {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+
+    .weight-bar {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .weight-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1d4ed8 0%, #0f172a 100%);
+      border-radius: 999px;
+    }
+
+    .content-top {
+      display: grid;
+      grid-template-rows: 420px auto;
+      gap: 20px;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      border-radius: 24px;
+      overflow: hidden;
+    }
+
+    .map-wrapper {
+      position: relative;
+      min-height: 420px;
+    }
+
+    .legend {
+      position: absolute;
+      right: 16px;
+      top: 16px;
+      z-index: 500;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 10px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    .map-note {
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      z-index: 500;
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+      max-width: 360px;
+      line-height: 1.45;
+    }
+
+    .table-toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      background: white;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1360px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 14px 14px;
+      border-bottom: 1px solid #edf2f7;
+      vertical-align: top;
+      font-size: 13px;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      color: var(--muted);
+      font-weight: 700;
+      z-index: 1;
+    }
+
+    tbody tr:hover { background: #f8fbff; }
+    tbody tr.active { background: #eff6ff; }
+
+    .priority-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .priority-high { background: #fee2e2; color: #991b1b; }
+    .priority-mid { background: #fef3c7; color: #92400e; }
+    .priority-low { background: #e2e8f0; color: #334155; }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .muted-link {
+      color: #1d4ed8;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    @media (max-width: 1280px) {
+      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .main-grid { grid-template-columns: 1fr; }
+      .content-top { grid-template-rows: 420px auto; }
+    }
+
+    @media (max-width: 820px) {
+      .app { padding: 14px; }
+      .header { flex-direction: column; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .builder-grid, .builder-grid-weights { grid-template-columns: 1fr; }
+      .table-toolbar { align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="header card">
+      <div>
+        <div class="eyebrow">МосДата · Благоустройство · Витрина сценариев</div>
+        <h1>Предиктивный анализ объектов дорожного хозяйства</h1>
+        <p class="subtitle">
+          Кликабельный прототип для отбора и приоритизации ОДХ по критериям покрытия, объема, стоимости и давности ремонта.
+          Пользователь задает критерии, настраивает веса и получает реестр объектов вместе с картой проблемных зон.
+        </p>
+      </div>
+      <div class="header-actions">
+        <button class="btn">Сохранить сценарий</button>
+        <button class="btn btn-soft" id="resetFiltersBtn">Сбросить настройки</button>
+        <button class="btn btn-primary" id="runAnalysisBtn">Запустить анализ</button>
+      </div>
+    </section>
+
+    <section class="summary-grid" id="summaryCards"></section>
+
+    <section class="main-grid">
+      <div class="sidebar">
+        <div class="card">
+          <div class="panel-title">
+            <div>
+              <h2>Критерии отбора</h2>
+              <p>Минимум один критерий обязателен. Можно использовать системные и пользовательские правила с группировками.</p>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn-mini" id="addSystemCriterionBtn">+ Системный</button>
+              <button class="btn-mini" id="addUserCriterionBtn">+ Пользовательский</button>
+            </div>
+          </div>
+
+          <div class="builder-row">
+            <div class="row-top">
+              <span class="pill">Конструктор системного критерия</span>
+              <span class="meta">Шаг 1</span>
+            </div>
+            <div class="builder-grid">
+              <select id="criterionField"></select>
+              <input id="criterionFrom" type="number" step="any" placeholder="От" />
+              <input id="criterionTo" type="number" step="any" placeholder="До" />
+              <button class="btn-mini" id="applyCriterionBtn">Добавить</button>
+            </div>
+            <div class="note">Примеры: процент покрытия 0–85, рекомендуемый объем 3000–999999, давность ремонта 5–20.</div>
+          </div>
+
+          <div class="builder-row">
+            <div class="row-top">
+              <span class="pill">Конструктор пользовательского критерия</span>
+              <span class="meta">Шаг 2</span>
+            </div>
+            <div class="builder-grid" style="grid-template-columns: 1fr .7fr auto;">
+              <select id="userCriterionTemplate"></select>
+              <select id="userCriterionLogic">
+                <option value="AND">И (AND)</option>
+                <option value="OR">ИЛИ (OR)</option>
+              </select>
+              <button class="btn-mini" id="applyUserCriterionBtn">Добавить</button>
+            </div>
+            <div class="note">Пользовательский критерий добавляется как готовая логическая группа. Для прототипа доступны шаблоны с И/ИЛИ.</div>
+          </div>
+
+          <div class="stack" id="criteriaList"></div>
+        </div>
+
+        <div class="card">
+          <div class="panel-title">
+            <div>
+              <h2>Приоритизация</h2>
+              <p>Если веса не заданы, применяется системная модель. Пользовательские веса влияют только на сортировку списка.</p>
+            </div>
+            <button class="btn-mini" id="addWeightBtn">+ Добавить вес</button>
+          </div>
+
+          <div class="builder-row">
+            <div class="row-top">
+              <span class="pill">Конструктор системного веса</span>
+              <span class="meta">Шаг 3</span>
+            </div>
+            <div class="builder-grid-weights">
+              <select id="weightField"></select>
+              <input id="weightValue" type="number" min="1" max="100" step="1" placeholder="Вес, %" />
+              <button class="btn-mini" id="applyWeightBtn">Добавить</button>
+            </div>
+            <div class="note">Сумма пользовательских весов должна составлять 100%. Иначе будет применена системная модель.</div>
+          </div>
+
+          <div class="stack" id="weightsList"></div>
+          <div class="note" id="weightsStatus"></div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="content-top">
+          <div class="card map-wrapper">
+            <div class="panel-title">
+              <div>
+                <h2>Карта</h2>
+                <p>Подложка OpenStreetMap. На карте отображаются проблемные территории и цветовая дифференциация по приоритету.</p>
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <span class="pill high">Высокий приоритет</span>
+                <span class="pill mid">Средний приоритет</span>
+                <span class="pill low">Низкий приоритет</span>
+              </div>
+            </div>
+            <div id="map"></div>
+            <div class="legend">
+              <span class="pill high">0.75–1.00</span>
+              <span class="pill mid">0.45–0.74</span>
+              <span class="pill low">0.00–0.44</span>
+            </div>
+            <div class="map-note">
+              Демонстрационный режим. В реальной интеграции вместо тестовых полигонов подключаются геометрии ОДХ и проблемных зон из МосДаты.
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="table-toolbar">
+              <div>
+                <h2 style="margin:0 0 6px;">Реестр объектов</h2>
+                <div class="footer-note">Сортировка формируется по приоритету, рассчитанному на основе заданных весов или системной модели.</div>
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn">Экспорт CSV</button>
+                <button class="btn">Открыть карточку ОДХ</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Приоритет</th>
+                    <th>ID ОДХ</th>
+                    <th>Наименование</th>
+                    <th>Категория</th>
+                    <th>Тип анализа</th>
+                    <th>Основание включения</th>
+                    <th>Процент покрытия</th>
+                    <th>Общая площадь покрытия</th>
+                    <th>Покрытая площадь</th>
+                    <th>Непокрытая площадь</th>
+                    <th>Рекомендуемый объем</th>
+                    <th>Ориентировочная стоимость</th>
+                    <th>Год последней работы</th>
+                    <th>Давность ремонта</th>
+                  </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    const FIELD_OPTIONS = [
+      { code: 'planningYear', label: 'Год планирования', type: 'number' },
+      { code: 'coveragePercent', label: 'Процент покрытия', type: 'number' },
+      { code: 'coveredArea', label: 'Покрытая площадь', type: 'number' },
+      { code: 'uncoveredArea', label: 'Непокрытая площадь', type: 'number' },
+      { code: 'recommendedVolume', label: 'Рекомендуемый объем работ', type: 'number' },
+      { code: 'estimatedCost', label: 'Ориентировочная стоимость', type: 'number' },
+      { code: 'repairAge', label: 'Давность ремонта', type: 'number' },
+      { code: 'priorityScore', label: 'Итоговый приоритет', type: 'number' },
+      { code: 'district', label: 'Округ', type: 'text' },
+      { code: 'oiv', label: 'ОИВ', type: 'text' }
+    ];
+
+    const USER_TEMPLATES = [
+      {
+        code: 'logic_1',
+        label: '(Покрытие < 85 И Объем > 3000) ИЛИ (Работы не выполнялись)',
+        predicate: (item) => ((item.coveragePercent < 85 && item.recommendedVolume > 3000) || item.noWorks === true)
+      },
+      {
+        code: 'logic_2',
+        label: '(Давность ремонта > 5 И Стоимость < 15000000)',
+        predicate: (item) => (item.repairAge > 5 && item.estimatedCost < 15000000)
+      },
+      {
+        code: 'logic_3',
+        label: '(Округ = ЦАО И Непокрытая площадь > 1000)',
+        predicate: (item) => (item.district === 'ЦАО' && item.uncoveredArea > 1000)
+      }
+    ];
+
+    const WEIGHTABLE_FIELDS = [
+      { code: 'stateIndex', label: 'Индекс состояния' },
+      { code: 'repairAgeIndex', label: 'Давность ремонта' },
+      { code: 'coveragePercent', label: 'Процент покрытия' },
+      { code: 'recommendedVolume', label: 'Рекомендуемый объем работ' },
+      { code: 'estimatedCost', label: 'Ориентировочная стоимость' },
+      { code: 'userCriterion', label: 'Пользовательский критерий' }
+    ];
+
+    const SYSTEM_WEIGHTS = {
+      stateIndex: 35,
+      repairAgeIndex: 30,
+      estimatedCost: 20,
+      recommendedVolume: 15
+    };
+
+    const DATA = [
+      {
+        id: 'ОДХ-10452',
+        name: 'Проезд вдоль жилого квартала',
+        category: 'Проезжая часть',
+        analysisType: 'Покрытие',
+        reason: 'Недостаточное покрытие',
+        coveragePercent: 62,
+        totalArea: 5480,
+        coveredArea: 3398,
+        uncoveredArea: 2082,
+        recommendedVolume: 2082,
+        estimatedCost: 8744400,
+        lastWorkYear: 2021,
+        repairAge: 5,
+        planningYear: 2026,
+        district: 'ЦАО',
+        oiv: 'Префектура ЦАО',
+        noWorks: false,
+        interrepairExpired: false,
+        geometry: [[55.75235, 37.61755],[55.75315, 37.6212],[55.75095, 37.623],[55.74985, 37.6191]]
+      },
+      {
+        id: 'ОДХ-10831',
+        name: 'Внутриквартальный проезд у школы',
+        category: 'Проезжая часть',
+        analysisType: 'Срок',
+        reason: 'Истек межремонтный срок',
+        coveragePercent: 88,
+        totalArea: 4210,
+        coveredArea: 3705,
+        uncoveredArea: 505,
+        recommendedVolume: 4210,
+        estimatedCost: 17682000,
+        lastWorkYear: 2017,
+        repairAge: 9,
+        planningYear: 2026,
+        district: 'СЗАО',
+        oiv: 'Префектура СЗАО',
+        noWorks: false,
+        interrepairExpired: true,
+        geometry: [[55.7817, 37.4802],[55.7832, 37.4853],[55.7803, 37.4874],[55.7789, 37.4822]]
+      },
+      {
+        id: 'ОДХ-11109',
+        name: 'Проезд у административного здания',
+        category: 'Проезжая часть',
+        analysisType: 'Отсутствие работ',
+        reason: 'Работы не выполнялись',
+        coveragePercent: 0,
+        totalArea: 3160,
+        coveredArea: 0,
+        uncoveredArea: 3160,
+        recommendedVolume: 3160,
+        estimatedCost: 13272000,
+        lastWorkYear: null,
+        repairAge: 0,
+        planningYear: 2026,
+        district: 'ЮАО',
+        oiv: 'Префектура ЮАО',
+        noWorks: true,
+        interrepairExpired: false,
+        geometry: [[55.6997, 37.6161],[55.7013, 37.6203],[55.6992, 37.6236],[55.6971, 37.6197]]
+      },
+      {
+        id: 'ОДХ-11377',
+        name: 'Проезд между жилыми корпусами',
+        category: 'Проезжая часть',
+        analysisType: 'Комбинированный',
+        reason: 'Недостаточное покрытие, истек срок',
+        coveragePercent: 47,
+        totalArea: 6840,
+        coveredArea: 3215,
+        uncoveredArea: 3625,
+        recommendedVolume: 6840,
+        estimatedCost: 28728000,
+        lastWorkYear: 2016,
+        repairAge: 10,
+        planningYear: 2027,
+        district: 'ВАО',
+        oiv: 'Префектура ВАО',
+        noWorks: false,
+        interrepairExpired: true,
+        geometry: [[55.7945, 37.7932],[55.7961, 37.7982],[55.7934, 37.8016],[55.7915, 37.7961]]
+      },
+      {
+        id: 'ОДХ-11590',
+        name: 'Подъездной проезд к поликлинике',
+        category: 'Проезжая часть',
+        analysisType: 'Покрытие',
+        reason: 'Недостаточное покрытие',
+        coveragePercent: 71,
+        totalArea: 2890,
+        coveredArea: 2052,
+        uncoveredArea: 838,
+        recommendedVolume: 838,
+        estimatedCost: 3519600,
+        lastWorkYear: 2020,
+        repairAge: 6,
+        planningYear: 2026,
+        district: 'ЦАО',
+        oiv: 'Префектура ЦАО',
+        noWorks: false,
+        interrepairExpired: false,
+        geometry: [[55.7606, 37.5846],[55.7617, 37.5891],[55.7587, 37.5912],[55.7575, 37.5862]]
+      },
+      {
+        id: 'ОДХ-11842',
+        name: 'Проезд у общественного пространства',
+        category: 'Проезжая часть',
+        analysisType: 'Срок',
+        reason: 'Истек межремонтный срок',
+        coveragePercent: 93,
+        totalArea: 3580,
+        coveredArea: 3329,
+        uncoveredArea: 251,
+        recommendedVolume: 3580,
+        estimatedCost: 15036000,
+        lastWorkYear: 2015,
+        repairAge: 11,
+        planningYear: 2027,
+        district: 'САО',
+        oiv: 'Префектура САО',
+        noWorks: false,
+        interrepairExpired: true,
+        geometry: [[55.8467, 37.5639],[55.8481, 37.5683],[55.8452, 37.5711],[55.8439, 37.5667]]
+      }
+    ];
+
+    let criteria = [
+      { id: cryptoRandomId(), type: 'system', field: 'coveragePercent', from: 0, to: 85 },
+      { id: cryptoRandomId(), type: 'system', field: 'recommendedVolume', from: 3000, to: 999999999 },
+      { id: cryptoRandomId(), type: 'user', templateCode: 'logic_1', logic: 'OR' }
+    ];
+
+    let weights = [
+      { id: cryptoRandomId(), field: 'stateIndex', weight: 35 },
+      { id: cryptoRandomId(), field: 'repairAgeIndex', weight: 25 },
+      { id: cryptoRandomId(), field: 'estimatedCost', weight: 20 },
+      { id: cryptoRandomId(), field: 'userCriterion', weight: 20 }
+    ];
+
+    let map;
+    let layerGroup;
+    let activeId = null;
+
+    function cryptoRandomId() {
+      return Math.random().toString(36).slice(2, 10);
+    }
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat('ru-RU').format(value);
+    }
+
+    function formatCurrency(value) {
+      return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(value) + ' ₽';
+    }
+
+    function getFieldLabel(code) {
+      return FIELD_OPTIONS.find(f => f.code === code)?.label || code;
+    }
+
+    function getWeightLabel(code) {
+      return WEIGHTABLE_FIELDS.find(f => f.code === code)?.label || code;
+    }
+
+    function getTemplate(code) {
+      return USER_TEMPLATES.find(t => t.code === code);
+    }
+
+    function initSelectors() {
+      const criterionField = document.getElementById('criterionField');
+      const weightField = document.getElementById('weightField');
+      const userCriterionTemplate = document.getElementById('userCriterionTemplate');
+
+      FIELD_OPTIONS.forEach(option => {
+        const el = document.createElement('option');
+        el.value = option.code;
+        el.textContent = option.label;
+        criterionField.appendChild(el);
+      });
+
+      WEIGHTABLE_FIELDS.forEach(option => {
+        const el = document.createElement('option');
+        el.value = option.code;
+        el.textContent = option.label;
+        weightField.appendChild(el);
+      });
+
+      USER_TEMPLATES.forEach(option => {
+        const el = document.createElement('option');
+        el.value = option.code;
+        el.textContent = option.label;
+        userCriterionTemplate.appendChild(el);
+      });
+    }
+
+    function evaluateCriterion(item, criterion) {
+      if (criterion.type === 'system') {
+        const value = item[criterion.field];
+        if (value === null || value === undefined || value === '') return false;
+        return Number(value) >= Number(criterion.from) && Number(value) <= Number(criterion.to);
+      }
+
+      if (criterion.type === 'user') {
+        const template = getTemplate(criterion.templateCode);
+        return template ? template.predicate(item) : false;
+      }
+
+      return false;
+    }
+
+    function passesCriteria(item) {
+      if (!criteria.length) return false;
+
+      const systemCriteria = criteria.filter(c => c.type === 'system');
+      const userCriteria = criteria.filter(c => c.type === 'user');
+
+      const systemResult = systemCriteria.length ? systemCriteria.every(c => evaluateCriterion(item, c)) : true;
+      if (!userCriteria.length) return systemResult;
+
+      let userResult = false;
+      userCriteria.forEach((criterion, index) => {
+        const current = evaluateCriterion(item, criterion);
+        if (index === 0) {
+          userResult = current;
+        } else {
+          userResult = criterion.logic === 'AND' ? (userResult && current) : (userResult || current);
+        }
+      });
+
+      return systemResult && userResult;
+    }
+
+    function computeDerived(item) {
+      const stateIndex = item.noWorks ? 1 : (1 - item.coveragePercent / 100);
+      const repairAgeIndex = item.lastWorkYear ? Math.min(item.repairAge / 10, 1) : 1;
+      const userCriterionValue = criteria.some(c => c.type === 'user')
+        ? (criteria.filter(c => c.type === 'user').some(c => evaluateCriterion(item, c)) ? 1 : 0)
+        : 0;
+      return { stateIndex, repairAgeIndex, userCriterionValue };
+    }
+
+    function normalize(items, field, getter, invert = false) {
+      const values = items.map(getter);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const range = max - min;
+      return Object.fromEntries(items.map(item => {
+        const raw = getter(item);
+        let val = range === 0 ? 1 : ((raw - min) / range);
+        if (invert) val = 1 - val;
+        return [item.id, val];
+      }));
+    }
+
+    function getEffectiveWeights() {
+      const total = weights.reduce((sum, w) => sum + Number(w.weight || 0), 0);
+      if (!weights.length || total !== 100) {
+        return Object.entries(SYSTEM_WEIGHTS).map(([field, weight]) => ({ field, weight }));
+      }
+      return weights.map(w => ({ field: w.field, weight: Number(w.weight) }));
+    }
+
+    function applyScoring(items) {
+      const derivedMap = Object.fromEntries(items.map(item => [item.id, computeDerived(item)]));
+      const costNorm = normalize(items, 'estimatedCost', item => item.estimatedCost, true);
+      const volumeNorm = normalize(items, 'recommendedVolume', item => item.recommendedVolume, false);
+      const coverageNorm = normalize(items, 'coveragePercent', item => item.coveragePercent, true);
+
+      const effectiveWeights = getEffectiveWeights();
+
+      return items.map(item => {
+        const derived = derivedMap[item.id];
+        const factorValues = {
+          stateIndex: derived.stateIndex,
+          repairAgeIndex: derived.repairAgeIndex,
+          coveragePercent: coverageNorm[item.id],
+          recommendedVolume: volumeNorm[item.id],
+          estimatedCost: costNorm[item.id],
+          userCriterion: derived.userCriterionValue
+        };
+
+        let score = 0;
+        effectiveWeights.forEach(w => {
+          score += (factorValues[w.field] || 0) * (w.weight / 100);
+        });
+
+        return {
+          ...item,
+          ...derived,
+          priorityScore: Number(score.toFixed(4))
+        };
+      }).sort((a, b) => b.priorityScore - a.priorityScore);
+    }
+
+    function getFilteredData() {
+      return DATA.filter(passesCriteria);
+    }
+
+    function getPriorityClass(score) {
+      if (score >= 0.75) return 'high';
+      if (score >= 0.45) return 'mid';
+      return 'low';
+    }
+
+    function getPriorityBadge(score) {
+      const cls = getPriorityClass(score);
+      if (cls === 'high') return { className: 'priority-high', text: 'Высокий' };
+      if (cls === 'mid') return { className: 'priority-mid', text: 'Средний' };
+      return { className: 'priority-low', text: 'Низкий' };
+    }
+
+    function renderCriteria() {
+      const container = document.getElementById('criteriaList');
+      container.innerHTML = '';
+
+      if (!criteria.length) {
+        container.innerHTML = '<div class="note">Критерии не заданы. Анализ недоступен до добавления хотя бы одного критерия.</div>';
+        return;
+      }
+
+      criteria.forEach((criterion, index) => {
+        const row = document.createElement('div');
+        row.className = 'criterion-row';
+
+        if (criterion.type === 'system') {
+          row.innerHTML = `
+            <div class="row-top">
+              <span class="pill">Системный</span>
+              <button class="btn-mini" data-remove-criterion="${criterion.id}">Удалить</button>
+            </div>
+            <div class="criterion-text">${getFieldLabel(criterion.field)}: от ${criterion.from} до ${criterion.to}</div>
+            <div class="meta" style="margin-top:8px;">Критерий ${index + 1}</div>
+          `;
+        } else {
+          const template = getTemplate(criterion.templateCode);
+          row.innerHTML = `
+            <div class="row-top">
+              <span class="pill">Пользовательский</span>
+              <button class="btn-mini" data-remove-criterion="${criterion.id}">Удалить</button>
+            </div>
+            <div class="criterion-text">${template ? template.label : 'Шаблон не найден'}</div>
+            <div class="meta" style="margin-top:8px;">Логическая связка: ${criterion.logic}</div>
+          `;
+        }
+
+        container.appendChild(row);
+      });
+
+      container.querySelectorAll('[data-remove-criterion]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          criteria = criteria.filter(c => c.id !== btn.dataset.removeCriterion);
+          renderAll();
+        });
+      });
+    }
+
+    function renderWeights() {
+      const container = document.getElementById('weightsList');
+      const status = document.getElementById('weightsStatus');
+      container.innerHTML = '';
+
+      if (!weights.length) {
+        status.textContent = 'Пользовательские веса не заданы. Будет использована системная модель приоритизации.';
+        return;
+      }
+
+      weights.forEach(weight => {
+        const row = document.createElement('div');
+        row.className = 'weight-row';
+        row.innerHTML = `
+          <div class="row-top">
+            <span class="criterion-text">${getWeightLabel(weight.field)}</span>
+            <button class="btn-mini" data-remove-weight="${weight.id}">Удалить</button>
+          </div>
+          <div class="meta">Вес: ${weight.weight}%</div>
+          <div class="weight-bar"><div class="weight-fill" style="width:${weight.weight}%"></div></div>
+        `;
+        container.appendChild(row);
+      });
+
+      const total = weights.reduce((sum, w) => sum + Number(w.weight || 0), 0);
+      if (total === 100) {
+        status.innerHTML = '<span class="pill ok">Итог: 100%</span> Пользовательская приоритизация активна.';
+      } else {
+        status.innerHTML = `<span class="pill">Итог: ${total}%</span> Сумма не равна 100%, поэтому будет использована системная модель.`;
+      }
+
+      container.querySelectorAll('[data-remove-weight]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          weights = weights.filter(w => w.id !== btn.dataset.removeWeight);
+          renderAll();
+        });
+      });
+    }
+
+    function renderSummary(data) {
+      const el = document.getElementById('summaryCards');
+      const totalObjects = data.length;
+      const totalArea = data.reduce((sum, i) => sum + i.totalArea, 0);
+      const covered = data.reduce((sum, i) => sum + i.coveredArea, 0);
+      const uncovered = data.reduce((sum, i) => sum + i.uncoveredArea, 0);
+      const volume = data.reduce((sum, i) => sum + i.recommendedVolume, 0);
+      const cost = data.reduce((sum, i) => sum + i.estimatedCost, 0);
+
+      const cards = [
+        { label: 'Объектов в выборке', value: formatNumber(totalObjects), sub: 'по текущим критериям' },
+        { label: 'Суммарная площадь покрытия', value: formatNumber(totalArea) + ' м²', sub: 'по выбранным ОДХ' },
+        { label: 'Покрытая площадь', value: formatNumber(covered) + ' м²', sub: 'по выполненным работам' },
+        { label: 'Непокрытая площадь', value: formatNumber(uncovered) + ' м²', sub: 'требует внимания' },
+        { label: 'Ориентировочная стоимость', value: formatCurrency(cost), sub: 'оценочно, по нормативу' }
+      ];
+
+      el.innerHTML = cards.map(card => `
+        <div class="card summary-card">
+          <div class="label">${card.label}</div>
+          <div class="value">${card.value}</div>
+          <div class="sub">${card.sub}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderTable(data) {
+      const body = document.getElementById('resultsBody');
+      body.innerHTML = '';
+
+      if (!criteria.length) {
+        body.innerHTML = '<tr><td colspan="14">Добавьте хотя бы один критерий, чтобы запустить анализ.</td></tr>';
+        return;
+      }
+
+      if (!data.length) {
+        body.innerHTML = '<tr><td colspan="14">По заданным критериям объектов не найдено.</td></tr>';
+        return;
+      }
+
+      data.forEach((item, index) => {
+        const badge = getPriorityBadge(item.priorityScore);
+        const tr = document.createElement('tr');
+        if (item.id === activeId) tr.classList.add('active');
+        tr.dataset.id = item.id;
+        tr.innerHTML = `
+          <td>
+            <span class="priority-badge ${badge.className}">#${index + 1} · ${item.priorityScore.toFixed(2)} · ${badge.text}</span>
+          </td>
+          <td>${item.id}</td>
+          <td>${item.name}</td>
+          <td>${item.category}</td>
+          <td>${item.analysisType}</td>
+          <td>${item.reason}</td>
+          <td>${item.coveragePercent}%</td>
+          <td>${formatNumber(item.totalArea)} м²</td>
+          <td>${formatNumber(item.coveredArea)} м²</td>
+          <td>${formatNumber(item.uncoveredArea)} м²</td>
+          <td>${formatNumber(item.recommendedVolume)} м²</td>
+          <td>${formatCurrency(item.estimatedCost)}</td>
+          <td>${item.lastWorkYear || '—'}</td>
+          <td>${item.lastWorkYear ? item.repairAge + ' лет' : '—'}</td>
+        `;
+        tr.addEventListener('click', () => {
+          activeId = item.id;
+          focusMapOnItem(item);
+          renderTable(data);
+        });
+        body.appendChild(tr);
+      });
+    }
+
+    function initMap() {
+      map = L.map('map', { zoomControl: true }).setView([55.7558, 37.6176], 10);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      layerGroup = L.layerGroup().addTo(map);
+    }
+
+    function renderMap(data) {
+      layerGroup.clearLayers();
+      if (!data.length) return;
+
+      const bounds = [];
+      data.forEach(item => {
+        const cls = getPriorityClass(item.priorityScore);
+        const style = cls === 'high'
+          ? { color: '#dc2626', fillColor: '#fca5a5', fillOpacity: 0.55, weight: 2 }
+          : cls === 'mid'
+            ? { color: '#d97706', fillColor: '#fcd34d', fillOpacity: 0.5, weight: 2 }
+            : { color: '#64748b', fillColor: '#cbd5e1', fillOpacity: 0.45, weight: 2 };
+
+        const polygon = L.polygon(item.geometry, style)
+          .bindPopup(`
+            <strong>${item.name}</strong><br>
+            ${item.id}<br>
+            Основание: ${item.reason}<br>
+            Покрытие: ${item.coveragePercent}%<br>
+            Объем: ${formatNumber(item.recommendedVolume)} м²<br>
+            Стоимость: ${formatCurrency(item.estimatedCost)}<br>
+            Приоритет: ${item.priorityScore.toFixed(2)}
+          `)
+          .on('click', () => {
+            activeId = item.id;
+            renderAll();
+          });
+
+        polygon.addTo(layerGroup);
+        bounds.push(...item.geometry);
+      });
+
+      const latLngBounds = L.latLngBounds(bounds);
+      map.fitBounds(latLngBounds.pad(0.2));
+    }
+
+    function focusMapOnItem(item) {
+      if (!map || !item) return;
+      const bounds = L.latLngBounds(item.geometry);
+      map.fitBounds(bounds.pad(0.4));
+    }
+
+    function renderAll() {
+      renderCriteria();
+      renderWeights();
+
+      const filtered = getFilteredData();
+      const scored = applyScoring(filtered);
+      renderSummary(scored);
+      renderTable(scored);
+      renderMap(scored);
+    }
+
+    function attachEvents() {
+      document.getElementById('applyCriterionBtn').addEventListener('click', () => {
+        const field = document.getElementById('criterionField').value;
+        const from = document.getElementById('criterionFrom').value;
+        const to = document.getElementById('criterionTo').value;
+
+        if (from === '' || to === '') {
+          alert('Для системного критерия необходимо заполнить оба значения диапазона.');
+          return;
+        }
+
+        criteria.push({
+          id: cryptoRandomId(),
+          type: 'system',
+          field,
+          from: Number(from),
+          to: Number(to)
+        });
+
+        document.getElementById('criterionFrom').value = '';
+        document.getElementById('criterionTo').value = '';
+        renderAll();
+      });
+
+      document.getElementById('applyUserCriterionBtn').addEventListener('click', () => {
+        const templateCode = document.getElementById('userCriterionTemplate').value;
+        const logic = document.getElementById('userCriterionLogic').value;
+        criteria.push({ id: cryptoRandomId(), type: 'user', templateCode, logic });
+        renderAll();
+      });
+
+      document.getElementById('applyWeightBtn').addEventListener('click', () => {
+        const field = document.getElementById('weightField').value;
+        const weight = Number(document.getElementById('weightValue').value);
+        if (!weight || weight <= 0) {
+          alert('Укажите корректный вес больше 0.');
+          return;
+        }
+        weights.push({ id: cryptoRandomId(), field, weight });
+        document.getElementById('weightValue').value = '';
+        renderAll();
+      });
+
+      document.getElementById('runAnalysisBtn').addEventListener('click', () => {
+        if (!criteria.length) {
+          alert('Перед запуском анализа необходимо добавить хотя бы один критерий.');
+          return;
+        }
+        renderAll();
+      });
+
+      document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+        criteria = [];
+        weights = [];
+        activeId = null;
+        renderAll();
+      });
+
+      document.getElementById('addSystemCriterionBtn').addEventListener('click', () => {
+        document.getElementById('criterionField').focus();
+      });
+
+      document.getElementById('addUserCriterionBtn').addEventListener('click', () => {
+        document.getElementById('userCriterionTemplate').focus();
+      });
+
+      document.getElementById('addWeightBtn').addEventListener('click', () => {
+        document.getElementById('weightField').focus();
+      });
+    }
+
+    initSelectors();
+    initMap();
+    attachEvents();
+    renderAll();
+  </script>
+</body>
+</html>
