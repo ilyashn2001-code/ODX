@@ -7,204 +7,159 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    crossorigin=""
-  />
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="./styles_fixed.css" />
 </head>
 <body>
   <div class="page-shell">
-    <header class="app-header">
-      <div class="brand-block">
-        <div class="brand-icons" aria-hidden="true">
-          <div class="brand-icon brand-icon-dark">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 3v18h18"></path>
-              <path d="M7 14l3-3 3 2 4-6"></path>
-              <circle cx="7" cy="14" r="1" fill="currentColor" stroke="none"></circle>
-              <circle cx="10" cy="11" r="1" fill="currentColor" stroke="none"></circle>
-              <circle cx="13" cy="13" r="1" fill="currentColor" stroke="none"></circle>
-              <circle cx="17" cy="7" r="1" fill="currentColor" stroke="none"></circle>
-            </svg>
-          </div>
-          <div class="brand-icon brand-icon-soft">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 1 1 18 0Z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
-          </div>
-        </div>
-        <div>
-          <div class="eyebrow">МосДата · Аналитический макет</div>
-          <h1>Предиктивный анализ различных наборов</h1>
-          <p class="subtitle">
-            Кликабельный прототип отбора и приоритизации объектов по нескольким наборам:
-            объекты ОДХ, работы на ОДХ и работы на ОКБ.
-          </p>
-        </div>
+    <header class="hero-card">
+      <div>
+        <div class="eyebrow">МосДата · Аналитический макет</div>
+        <h1>Предиктивный анализ различных наборов</h1>
+        <p class="subtitle">Прототип отбора, приоритизации и картографического анализа объектов ОДХ по трём наборам: объекты ОДХ, работы на ОДХ, работы на ОКБ.</p>
       </div>
-
-      <div class="header-actions">
-        <button id="runAnalysisBtn" class="btn btn-primary">
-          <span>▶</span>
-          <span>Запустить анализ</span>
-        </button>
-        <button id="resetAnalysisBtn" class="btn btn-secondary hidden">
-          <span>↺</span>
-          <span>Сбросить анализ</span>
-        </button>
+      <div class="hero-actions">
+        <button id="runAnalysisBtn" class="btn btn-primary">Запустить анализ</button>
+        <button id="resetAnalysisBtn" class="btn btn-secondary">Сбросить</button>
       </div>
     </header>
 
-    <section class="builder-grid">
-      <div class="builder-card">
-        <div class="builder-card-header">
+    <section class="grid-two">
+      <div class="card">
+        <div class="card-head">
           <div>
-            <h2>Критерии отбора</h2>
-            <p>
-              Добавьте критерии по нужному набору. Внутри каждого критерия доступны атрибуты выбранного набора.
-            </p>
-          </div>
-          <button id="addCriterionBtn" class="btn btn-small">+ Добавить критерий</button>
-        </div>
-
-        <div class="dataset-note">
-          <div class="dataset-note-title">Правило запуска</div>
-          <div class="dataset-note-text">
-            Если критерии не заданы, анализ можно запустить только при выборе минимум двух наборов.
+            <h2>Шаг 1. Наборы данных</h2>
+            <p>Сначала выбери, с какими наборами работает пользователь. Только выбранные наборы будут доступны в критериях.</p>
           </div>
         </div>
-
-        <div id="criteriaList" class="stack-gap"></div>
+        <div id="datasetSelection" class="dataset-grid"></div>
+        <div class="helper-text">Для запуска анализа должен быть выбран хотя бы один набор.</div>
       </div>
 
-      <div class="builder-card">
-        <div class="builder-card-header">
+      <div class="card">
+        <div class="card-head">
           <div>
-            <h2>Весовые коэффициенты</h2>
-            <p>
-              По умолчанию используются базовые веса. При включении пользовательских коэффициентов сумма должна быть 100%.
-            </p>
+            <h2>Шаг 2. Весовые коэффициенты</h2>
+            <p>Коэффициенты влияют только на приоритет объектов, а не на состав выборки.</p>
           </div>
           <label class="toggle-line">
             <input id="customWeightsToggle" type="checkbox" />
             <span>Свои коэффициенты</span>
           </label>
         </div>
-
-        <div class="base-weights-box">
-          <div class="base-weights-title">Установлены базовые весовые коэффициенты</div>
-          <ul class="base-weights-list">
-            <li>Процент покрытия — <strong>35%</strong></li>
-            <li>Давность последнего ремонта — <strong>25%</strong></li>
-            <li>Ориентировочная стоимость — <strong>20%</strong></li>
-            <li>Рекомендуемый объем работ — <strong>20%</strong></li>
-          </ul>
-        </div>
-
-        <div id="weightsEditor" class="weights-editor disabled-block">
-          <div class="weights-toolbar">
-            <div class="weights-toolbar-title">Пользовательские коэффициенты</div>
-            <button id="addWeightBtn" class="btn btn-small">+ Добавить коэффициент</button>
+        <div class="base-box">
+          <div class="base-title">Базовая модель приоритизации</div>
+          <div class="chips-row">
+            <span class="chip">Процент покрытия — 35%</span>
+            <span class="chip">Давность ремонта — 25%</span>
+            <span class="chip">Стоимость — 20%</span>
+            <span class="chip">Объем работ — 20%</span>
           </div>
-          <div id="weightsList" class="stack-gap"></div>
-          <div id="weightsStatus" class="weights-status">Пользовательские коэффициенты выключены.</div>
+        </div>
+        <div id="weightsEditor" class="stack disabled-block"></div>
+        <div class="toolbar-line">
+          <button id="addWeightBtn" class="btn btn-secondary btn-small">Добавить коэффициент</button>
+          <button id="resetWeightsBtn" class="btn btn-secondary btn-small">Вернуть базовые</button>
+          <div id="weightsStatus" class="status-pill neutral">Используются базовые коэффициенты</div>
         </div>
       </div>
     </section>
 
-    <section id="analysisLoading" class="loading-card hidden">
-      <div class="loading-title">Выполняется анализ</div>
-      <div id="loadingStage" class="loading-stage">Подготовка наборов...</div>
-      <div class="loading-bar">
-        <div id="loadingBarFill" class="loading-bar-fill"></div>
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2>Шаг 3. Сложные критерии отбора</h2>
+          <p>Критерии собираются группами. Внутри группы можно настраивать строки условий, а между группами — связь И / ИЛИ / НЕ.</p>
+        </div>
+        <div class="toolbar-line compact">
+          <button id="addGroupBtn" class="btn btn-primary btn-small">Добавить группу</button>
+        </div>
       </div>
+      <div id="groupsList" class="stack"></div>
+    </section>
+
+    <section id="analysisLoading" class="card hidden">
+      <div class="loading-title">Выполняется анализ</div>
+      <div id="loadingStage" class="helper-text">Подготовка наборов...</div>
+      <div class="loading-bar"><div id="loadingBarFill" class="loading-fill"></div></div>
       <div id="loadingPercent" class="loading-percent">0%</div>
     </section>
 
-    <section id="resultsSection" class="results-section hidden">
-      <div id="summaryCards" class="summary-row"></div>
+    <section id="resultsSection" class="stack hidden">
+      <div id="summaryCards" class="summary-grid"></div>
 
-      <div class="post-analysis-grid">
-        <div class="builder-card compact-card">
-          <div class="builder-card-header">
+      <section class="grid-result">
+        <div class="card">
+          <div class="card-head">
             <div>
-              <h2>Критерии отбора</h2>
-              <p>Изменение критериев меняет состав выборки и количество строк в реестре.</p>
+              <h2>Карта</h2>
+              <p>Клик по строке в реестре центрирует карту на объекте и подсвечивает полигон.</p>
+            </div>
+            <div class="chips-row">
+              <span class="chip chip-high">Высокий</span>
+              <span class="chip chip-medium">Средний</span>
+              <span class="chip chip-low">Низкий</span>
             </div>
           </div>
-          <div id="criteriaMirror" class="stack-gap"></div>
+          <div id="map"></div>
         </div>
 
-        <div class="builder-card compact-card">
-          <div class="builder-card-header">
+        <div class="card side-card">
+          <div class="card-head">
             <div>
-              <h2>Весовые коэффициенты</h2>
-              <p>Изменение коэффициентов меняет только приоритет и порядок строк.</p>
+              <h2>Применённая логика</h2>
+              <p>Критерии меняют состав выборки. Веса меняют только порядок строк.</p>
             </div>
           </div>
-          <div id="weightsMirror" class="stack-gap"></div>
+          <div class="subsection-title">Выбранные наборы</div>
+          <div id="selectedDatasetsView" class="chips-row wrap"></div>
+          <div class="subsection-title">Группы критериев</div>
+          <div id="criteriaMirror" class="stack compact-stack"></div>
+          <div class="subsection-title">Эффективные веса</div>
+          <div id="weightsMirror" class="stack compact-stack"></div>
         </div>
-      </div>
+      </section>
 
-      <div class="map-card">
-        <div class="map-header">
-          <div>
-            <h2>Карта</h2>
-            <p>Подложка OpenStreetMap. Цвет отражает уровень приоритета объекта.</p>
-          </div>
-          <div class="map-legend">
-            <span class="legend-pill high">Высокий</span>
-            <span class="legend-pill medium">Средний</span>
-            <span class="legend-pill low">Низкий</span>
-          </div>
-        </div>
-        <div id="map"></div>
-      </div>
-
-      <div class="table-card">
-        <div class="table-card-header">
+      <section class="card">
+        <div class="card-head">
           <div>
             <h2>Реестр объектов</h2>
-            <p>Последний столбец подготовлен под будущий переход в карточку объекта.</p>
+            <p>В таблице можно открыть объект на карте. Реестр отражает итог после фильтрации и приоритизации.</p>
           </div>
           <button id="exportExcelBtn" class="btn btn-secondary">Выгрузить в Excel</button>
         </div>
-
         <div class="table-wrap">
           <table class="results-table">
             <thead>
               <tr>
-                <th>Приоритет</th>
-                <th>ID объекта</th>
-                <th>Наименование</th>
+                <th>#</th>
+                <th>Объект</th>
                 <th>Тип набора</th>
                 <th>Основание включения</th>
-                <th>Процент покрытия</th>
+                <th>Покрытие, %</th>
                 <th>Покрытая площадь</th>
                 <th>Непокрытая площадь</th>
                 <th>Рекомендуемый объем</th>
-                <th>Ориентировочная стоимость</th>
-                <th>Последний год работ</th>
-                <th>Давность ремонта</th>
+                <th>Стоимость</th>
+                <th>Последний год</th>
+                <th>Давность</th>
                 <th>Округ</th>
                 <th>Район</th>
                 <th>ОИВ</th>
-                <th>Открыть карточку</th>
+                <th>Приоритет</th>
+                <th>Карта</th>
               </tr>
             </thead>
             <tbody id="resultsBody"></tbody>
           </table>
         </div>
-      </div>
+      </section>
     </section>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="./data.js"></script>
-  <script src="./app.js"></script>
+  <script src="./data_fixed.js"></script>
+  <script src="./app_fixed.js"></script>
 </body>
 </html>
