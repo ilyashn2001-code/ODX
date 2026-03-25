@@ -1,17 +1,15 @@
-const {
-  datasetsMeta,
-  weightableFields,
-  baseWeights,
-  objects
-} = window.APP_DATA;
+
+const { datasetsMeta, weightableFields, baseWeights, objects } = window.APP_DATA;
 
 const state = {
-  criteria: [],
+  selectedDatasets: new Set(["odhObjects", "odhWorks", "okbWorks"]),
+  groups: [],
   weights: [],
   customWeightsEnabled: false,
-  isCalculated: false,
   map: null,
-  mapLayerGroup: null
+  layersByObjectId: new Map(),
+  highlightedObjectId: null,
+  analysisResults: []
 };
 
 const OPERATORS_BY_TYPE = {
@@ -38,14 +36,6 @@ const OPERATORS_BY_TYPE = {
     { code: "eq", label: "Да / Нет" },
     { code: "isEmpty", label: "Пусто" },
     { code: "notEmpty", label: "Не пусто" }
-  ],
-  date: [
-    { code: "eq", label: "Равно" },
-    { code: "gt", label: "После" },
-    { code: "lt", label: "До" },
-    { code: "between", label: "От / До" },
-    { code: "isEmpty", label: "Пусто" },
-    { code: "notEmpty", label: "Не пусто" }
   ]
 };
 
@@ -54,447 +44,388 @@ function uid() {
 }
 
 function formatNumber(value, digits = 0) {
-  const options = { maximumFractionDigits: digits, minimumFractionDigits: digits };
-  return new Intl.NumberFormat("ru-RU", options).format(value);
+  if (value === null || value === undefined || value === "") return "—";
+  return new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: digits
+  }).format(value);
 }
 
 function formatCurrency(value) {
+  if (value === null || value === undefined) return "—";
   return `${formatNumber(value)} ₽`;
 }
 
-function getDatasetOptions() {
-  return Object.entries(datasetsMeta).map(([code, item]) => ({
-    code,
-    label: item.label
-  }));
+function getAvailableDatasets() {
+  return Object.entries(datasetsMeta)
+    .filter(([code]) => state.selectedDatasets.has(code))
+    .map(([code, item]) => ({ code, label: item.label }));
 }
 
 function getDatasetMeta(code) {
   return datasetsMeta[code];
 }
 
-function getAttributeMeta(datasetCode, attrCode) {
-  return getDatasetMeta(datasetCode)?.attributes.find(attr => attr.code === attrCode);
-}
-
 function getAttributeOptions(datasetCode) {
   return getDatasetMeta(datasetCode)?.attributes || [];
+}
+
+function getAttributeMeta(datasetCode, attrCode) {
+  return getAttributeOptions(datasetCode).find(item => item.code === attrCode);
 }
 
 function getOperators(type) {
   return OPERATORS_BY_TYPE[type] || OPERATORS_BY_TYPE.text;
 }
 
-function createSelect(options, value, extraAttrs = "") {
-  const opts = options.map(option => {
-    const selected = option.code === value ? "selected" : "";
-    return `<option value="${option.code}" ${selected}>${option.label}</option>`;
-  }).join("");
-  return `<select ${extraAttrs}>${opts}</select>`;
-}
-
-function createCriterion(defaults = {}) {
-  const firstDataset = defaults.dataset || "odhObjects";
-  const firstAttr = defaults.attribute || getAttributeOptions(firstDataset)[0]?.code;
-  const attrMeta = getAttributeMeta(firstDataset, firstAttr);
-  const firstOperator = defaults.operator || getOperators(attrMeta?.type || "text")[0].code;
-
+function createCondition(datasetCode) {
+  const attr = getAttributeOptions(datasetCode)[0];
+  const operator = getOperators(attr?.type || "text")[0]?.code || "eq";
   return {
     id: uid(),
-    join: defaults.join || "AND",
-    dataset: firstDataset,
-    attribute: firstAttr,
-    operator: firstOperator,
-    value1: defaults.value1 ?? "",
-    value2: defaults.value2 ?? ""
+    dataset: datasetCode,
+    attribute: attr?.code || "name",
+    operator,
+    value1: "",
+    value2: "",
+    rowJoin: "AND"
   };
 }
 
-function createWeight(defaults = {}) {
+function createGroup(defaultDataset) {
+  const datasetCode = defaultDataset || getAvailableDatasets()[0]?.code || "odhObjects";
   return {
     id: uid(),
-    field: defaults.field || "coveragePercent",
-    value: defaults.value ?? 25,
-    title: defaults.title || ""
+    joinToNext: "AND",
+    conditionsJoin: "AND",
+    conditions: [createCondition(datasetCode)]
   };
+}
+
+function createWeight(field = "coveragePercent", value = 25) {
+  return { id: uid(), field, value };
 }
 
 function initState() {
-  state.criteria = [
-    createCriterion({
-      dataset: "odhObjects",
-      attribute: "district",
-      operator: "eq",
-      value1: "ЦАО"
-    }),
-    createCriterion({
-      join: "AND",
-      dataset: "odhWorks",
-      attribute: "lastWorkYear",
-      operator: "lt",
-      value1: "2024"
-    })
-  ];
-
+  state.groups = [createGroup("odhObjects")];
   state.weights = [
-    createWeight({ field: "coveragePercent", value: 35 }),
-    createWeight({ field: "repairAge", value: 25 }),
-    createWeight({ field: "estimatedCost", value: 20 }),
-    createWeight({ field: "recommendedVolume", value: 20 })
+    createWeight("coveragePercent", 35),
+    createWeight("repairAge", 25),
+    createWeight("estimatedCost", 20),
+    createWeight("recommendedVolume", 20)
   ];
 }
 
-function renderCriteria(targetId = "criteriaList") {
-  const container = document.getElementById(targetId);
+function renderDatasetSelection() {
+  const container = document.getElementById("datasetSelection");
   container.innerHTML = "";
-
-  state.criteria.forEach((criterion, index) => {
-    const datasetOptions = getDatasetOptions();
-    const attrOptions = getAttributeOptions(criterion.dataset);
-    const attrMeta = getAttributeMeta(criterion.dataset, criterion.attribute);
-    const operatorOptions = getOperators(attrMeta?.type || "text");
-
-    const row = document.createElement("div");
-    row.className = "row-card";
-
-    const secondValueVisible = criterion.operator === "between";
-    const isEmptyOperator = criterion.operator === "isEmpty" || criterion.operator === "notEmpty";
-
-    row.innerHTML = `
-      <div class="row-card-head">
-        <span class="row-chip">Критерий ${index + 1}</span>
-        <button class="btn btn-small criterion-remove-btn" data-id="${criterion.id}">Удалить</button>
-      </div>
-
-      <div class="row-controls">
-        ${createSelect(
-          datasetOptions,
-          criterion.dataset,
-          `data-role="dataset" data-id="${criterion.id}"`
-        )}
-        ${createSelect(
-          attrOptions.map(item => ({ code: item.code, label: item.label })),
-          criterion.attribute,
-          `data-role="attribute" data-id="${criterion.id}"`
-        )}
-        ${createSelect(
-          operatorOptions,
-          criterion.operator,
-          `data-role="operator" data-id="${criterion.id}"`
-        )}
-        <input
-          data-role="value1"
-          data-id="${criterion.id}"
-          placeholder="${isEmptyOperator ? "Значение не требуется" : "Значение"}"
-          value="${criterion.value1 ?? ""}"
-          ${isEmptyOperator ? "disabled" : ""}
-        />
-        <input
-          data-role="value2"
-          data-id="${criterion.id}"
-          placeholder="${secondValueVisible ? "До" : "Не используется"}"
-          value="${criterion.value2 ?? ""}"
-          ${secondValueVisible ? "" : "disabled"}
-        />
-        <select data-role="join" data-id="${criterion.id}">
-          <option value="AND" ${criterion.join === "AND" ? "selected" : ""}>И</option>
-          <option value="OR" ${criterion.join === "OR" ? "selected" : ""}>ИЛИ</option>
-          <option value="NOT" ${criterion.join === "NOT" ? "selected" : ""}>НЕ</option>
-        </select>
-      </div>
-
-      <div class="row-meta">
-        Набор: <strong>${getDatasetMeta(criterion.dataset).label}</strong> ·
-        Атрибут: <strong>${attrMeta?.label || "-"}</strong> ·
-        Тип данных: <strong>${attrMeta?.type || "-"}</strong>
-      </div>
+  Object.entries(datasetsMeta).forEach(([code, item]) => {
+    const active = state.selectedDatasets.has(code);
+    const card = document.createElement("label");
+    card.className = `dataset-card ${active ? "active" : ""}`;
+    card.innerHTML = `
+      <div class="dataset-title"><input type="checkbox" data-code="${code}" ${active ? "checked" : ""}/> ${item.label}</div>
+      <div class="dataset-desc">${item.description || ""}</div>
     `;
-
-    container.appendChild(row);
+    container.appendChild(card);
   });
 
-  attachCriterionEvents(targetId);
+  container.querySelectorAll("input[type='checkbox']").forEach(input => {
+    input.addEventListener("change", event => {
+      const code = event.target.dataset.code;
+      if (event.target.checked) state.selectedDatasets.add(code);
+      else state.selectedDatasets.delete(code);
+      normalizeGroupsAgainstDatasets();
+      renderDatasetSelection();
+      renderGroups();
+      renderMirrors(state.analysisResults);
+    });
+  });
 }
 
-function renderWeights(targetId = "weightsList") {
-  const container = document.getElementById(targetId);
-  container.innerHTML = "";
+function normalizeGroupsAgainstDatasets() {
+  const available = getAvailableDatasets().map(item => item.code);
+  if (!available.length) return;
+  state.groups.forEach(group => {
+    group.conditions.forEach(cond => {
+      if (!state.selectedDatasets.has(cond.dataset)) {
+        cond.dataset = available[0];
+        cond.attribute = getAttributeOptions(cond.dataset)[0]?.code || "name";
+        cond.operator = getOperators(getAttributeMeta(cond.dataset, cond.attribute)?.type || "text")[0]?.code || "eq";
+        cond.value1 = "";
+        cond.value2 = "";
+      }
+    });
+  });
+}
 
-  state.weights.forEach((weight, index) => {
+function renderWeights() {
+  const container = document.getElementById("weightsEditor");
+  container.innerHTML = "";
+  container.classList.toggle("disabled-block", !state.customWeightsEnabled);
+
+  state.weights.forEach(weight => {
     const row = document.createElement("div");
-    row.className = "row-card";
+    row.className = "weight-row";
     row.innerHTML = `
-      <div class="row-card-head">
-        <span class="row-chip">Коэффициент ${index + 1}</span>
-        <button class="btn btn-small weight-remove-btn" data-id="${weight.id}">Удалить</button>
+      <div class="weight-grid">
+        <select data-role="field" data-id="${weight.id}">
+          ${weightableFields.map(item => `<option value="${item.code}" ${item.code === weight.field ? "selected" : ""}>${item.label}</option>`).join("")}
+        </select>
+        <input data-role="value" data-id="${weight.id}" type="number" min="0" max="100" value="${weight.value}" />
+        <button class="btn btn-small" data-role="remove" data-id="${weight.id}">Удалить</button>
       </div>
-      <div class="row-controls" style="grid-template-columns: 1.4fr minmax(100px,.7fr) 1.2fr auto auto auto;">
-        ${createSelect(
-          weightableFields.map(item => ({ code: item.code, label: item.label })),
-          weight.field,
-          `data-role="weight-field" data-id="${weight.id}"`
-        )}
-        <input data-role="weight-value" data-id="${weight.id}" type="number" min="0" max="100" value="${weight.value}" />
-        <input data-role="weight-title" data-id="${weight.id}" placeholder="Пояснение, если нужно" value="${weight.title || ""}" />
-        <div class="row-chip">${weight.value}%</div>
-        <div></div>
-        <div></div>
-      </div>
-      <div class="row-meta">Вес применяется к приоритизации, а не к составу выборки.</div>
     `;
     container.appendChild(row);
   });
 
-  attachWeightEvents(targetId);
+  container.querySelectorAll("[data-role='field']").forEach(el => el.addEventListener("change", onWeightChange));
+  container.querySelectorAll("[data-role='value']").forEach(el => el.addEventListener("input", onWeightChange));
+  container.querySelectorAll("[data-role='remove']").forEach(el => el.addEventListener("click", event => {
+    const id = event.target.dataset.id;
+    state.weights = state.weights.filter(item => item.id !== id);
+    renderWeights();
+    renderWeightStatus();
+    rerenderResultsOnly();
+  }));
   renderWeightStatus();
+}
+
+function onWeightChange(event) {
+  const id = event.target.dataset.id;
+  const weight = state.weights.find(item => item.id === id);
+  if (!weight) return;
+  if (event.target.dataset.role === "field") weight.field = event.target.value;
+  if (event.target.dataset.role === "value") weight.value = Number(event.target.value || 0);
+  renderWeightStatus();
+  rerenderResultsOnly();
 }
 
 function renderWeightStatus() {
   const status = document.getElementById("weightsStatus");
   if (!state.customWeightsEnabled) {
-    status.textContent = "Пользовательские коэффициенты выключены.";
+    status.className = "status-pill neutral";
+    status.textContent = "Используются базовые коэффициенты";
     return;
   }
   const sum = state.weights.reduce((acc, item) => acc + Number(item.value || 0), 0);
-  if (sum === 100) {
-    status.innerHTML = `Сумма коэффициентов: <strong>100%</strong>. Пользовательская приоритизация активна.`;
+  const unique = new Set(state.weights.map(item => item.field));
+  if (sum === 100 && unique.size === state.weights.length && state.weights.length > 0) {
+    status.className = "status-pill ok";
+    status.textContent = `Пользовательские коэффициенты активны · сумма ${sum}%`;
   } else {
-    status.innerHTML = `Сумма коэффициентов: <strong>${sum}%</strong>. Пока не 100%, поэтому приоритет берется из базовой модели.`;
+    status.className = "status-pill warn";
+    status.textContent = `Сумма ${sum}%${unique.size !== state.weights.length ? " · есть дубли полей" : ""}`;
   }
 }
 
-function renderMirrors(filtered) {
-  const criteriaMirror = document.getElementById("criteriaMirror");
-  const weightsMirror = document.getElementById("weightsMirror");
-  criteriaMirror.innerHTML = "";
-  weightsMirror.innerHTML = "";
+function renderGroups() {
+  const container = document.getElementById("groupsList");
+  container.innerHTML = "";
+  const datasetOptions = getAvailableDatasets();
 
-  state.criteria.forEach((criterion, idx) => {
-    const attrMeta = getAttributeMeta(criterion.dataset, criterion.attribute);
-    const block = document.createElement("div");
-    block.className = "mirror-row";
-    block.innerHTML = `
-      <div class="mirror-title">Критерий ${idx + 1}</div>
-      <div class="mirror-text">
-        ${getDatasetMeta(criterion.dataset).label} → ${attrMeta?.label || "-"} → ${criterion.operator}
-        ${criterion.value1 ? `→ ${criterion.value1}` : ""} ${criterion.value2 ? `до ${criterion.value2}` : ""}
-        <br>Логика связи: ${criterion.join}
+  if (!datasetOptions.length) {
+    container.innerHTML = `<div class="helper-text">Сначала выбери хотя бы один набор данных.</div>`;
+    return;
+  }
+
+  state.groups.forEach((group, groupIndex) => {
+    const groupEl = document.createElement("div");
+    groupEl.className = "group-card";
+    groupEl.innerHTML = `
+      <div class="group-head">
+        <div>
+          <strong>Группа ${groupIndex + 1}</strong>
+          <div class="row-note">Внутри группы используется связь <strong>${group.conditionsJoin === "AND" ? "И" : group.conditionsJoin === "OR" ? "ИЛИ" : "НЕ"}</strong>. Между группами — <strong>${group.joinToNext === "AND" ? "И" : group.joinToNext === "OR" ? "ИЛИ" : "НЕ"}</strong>.</div>
+        </div>
+        <div class="group-controls">
+          <select data-role="group-join" data-group-id="${group.id}">
+            <option value="AND" ${group.joinToNext === "AND" ? "selected" : ""}>Связь со следующей: И</option>
+            <option value="OR" ${group.joinToNext === "OR" ? "selected" : ""}>Связь со следующей: ИЛИ</option>
+            <option value="NOT" ${group.joinToNext === "NOT" ? "selected" : ""}>Связь со следующей: НЕ</option>
+          </select>
+          <select data-role="conditions-join" data-group-id="${group.id}">
+            <option value="AND" ${group.conditionsJoin === "AND" ? "selected" : ""}>Внутри группы: И</option>
+            <option value="OR" ${group.conditionsJoin === "OR" ? "selected" : ""}>Внутри группы: ИЛИ</option>
+            <option value="NOT" ${group.conditionsJoin === "NOT" ? "selected" : ""}>Внутри группы: НЕ</option>
+          </select>
+          <button class="btn btn-secondary btn-small" data-role="add-condition" data-group-id="${group.id}">Добавить строку</button>
+          <button class="btn btn-secondary btn-small" data-role="remove-group" data-group-id="${group.id}">Удалить группу</button>
+        </div>
       </div>
+      <div class="group-body" id="group-body-${group.id}"></div>
     `;
-    criteriaMirror.appendChild(block);
+    container.appendChild(groupEl);
+
+    const body = groupEl.querySelector(`#group-body-${group.id}`);
+    group.conditions.forEach((condition, conditionIndex) => {
+      const attrOptions = getAttributeOptions(condition.dataset);
+      const attrMeta = getAttributeMeta(condition.dataset, condition.attribute) || attrOptions[0];
+      const operators = getOperators(attrMeta?.type || "text");
+      const between = condition.operator === "between";
+      const emptyOp = condition.operator === "isEmpty" || condition.operator === "notEmpty";
+      const row = document.createElement("div");
+      row.className = "criterion-row";
+      row.innerHTML = `
+        <div class="criterion-grid">
+          <div>
+            <div class="row-note">Строка</div>
+            <div>${conditionIndex + 1}</div>
+          </div>
+          <select data-role="dataset" data-group-id="${group.id}" data-condition-id="${condition.id}">
+            ${datasetOptions.map(item => `<option value="${item.code}" ${item.code === condition.dataset ? "selected" : ""}>${item.label}</option>`).join("")}
+          </select>
+          <select data-role="attribute" data-group-id="${group.id}" data-condition-id="${condition.id}">
+            ${attrOptions.map(item => `<option value="${item.code}" ${item.code === condition.attribute ? "selected" : ""}>${item.label}</option>`).join("")}
+          </select>
+          <select data-role="operator" data-group-id="${group.id}" data-condition-id="${condition.id}">
+            ${operators.map(item => `<option value="${item.code}" ${item.code === condition.operator ? "selected" : ""}>${item.label}</option>`).join("")}
+          </select>
+          <input data-role="value1" data-group-id="${group.id}" data-condition-id="${condition.id}" value="${condition.value1 ?? ""}" placeholder="${emptyOp ? "Не нужно" : "Значение"}" ${emptyOp ? "disabled" : ""} />
+          <input data-role="value2" data-group-id="${group.id}" data-condition-id="${condition.id}" value="${condition.value2 ?? ""}" placeholder="${between ? "До" : "Не используется"}" ${between ? "" : "disabled"} />
+          <button class="btn btn-small" data-role="remove-condition" data-group-id="${group.id}" data-condition-id="${condition.id}">Удалить</button>
+        </div>
+      `;
+      body.appendChild(row);
+    });
   });
 
-  const activeWeights = getEffectiveWeights();
-  activeWeights.forEach((weight, idx) => {
-    const label = weightableFields.find(item => item.code === weight.field)?.label || weight.field;
-    const block = document.createElement("div");
-    block.className = "mirror-row";
-    block.innerHTML = `
-      <div class="mirror-title">Коэффициент ${idx + 1}</div>
-      <div class="mirror-text">${label} → ${weight.value}%</div>
-    `;
-    weightsMirror.appendChild(block);
-  });
+  attachGroupEvents();
 }
 
-function attachCriterionEvents(targetId = "criteriaList") {
-  const container = document.getElementById(targetId);
+function attachGroupEvents() {
+  document.querySelectorAll("[data-role='group-join']").forEach(el => el.addEventListener("change", event => {
+    const group = state.groups.find(item => item.id === event.target.dataset.groupId);
+    group.joinToNext = event.target.value;
+    renderGroups();
+    rerunAfterChange();
+  }));
 
-  container.querySelectorAll('[data-role="dataset"]').forEach(el => {
-    el.addEventListener("change", event => {
-      const criterion = state.criteria.find(item => item.id === event.target.dataset.id);
-      criterion.dataset = event.target.value;
-      criterion.attribute = getAttributeOptions(criterion.dataset)[0]?.code || "";
-      const attrMeta = getAttributeMeta(criterion.dataset, criterion.attribute);
-      criterion.operator = getOperators(attrMeta?.type || "text")[0].code;
-      criterion.value1 = "";
-      criterion.value2 = "";
-      rerenderCriteriaEverywhere();
-      if (state.isCalculated) rerunAfterChange();
+  document.querySelectorAll("[data-role='conditions-join']").forEach(el => el.addEventListener("change", event => {
+    const group = state.groups.find(item => item.id === event.target.dataset.groupId);
+    group.conditionsJoin = event.target.value;
+    renderGroups();
+    rerunAfterChange();
+  }));
+
+  document.querySelectorAll("[data-role='add-condition']").forEach(el => el.addEventListener("click", event => {
+    const group = state.groups.find(item => item.id === event.target.dataset.groupId);
+    group.conditions.push(createCondition(getAvailableDatasets()[0]?.code || "odhObjects"));
+    renderGroups();
+  }));
+
+  document.querySelectorAll("[data-role='remove-group']").forEach(el => el.addEventListener("click", event => {
+    const id = event.target.dataset.groupId;
+    state.groups = state.groups.filter(item => item.id !== id);
+    if (!state.groups.length && getAvailableDatasets().length) state.groups = [createGroup(getAvailableDatasets()[0].code)];
+    renderGroups();
+    rerunAfterChange();
+  }));
+
+  document.querySelectorAll("[data-role='remove-condition']").forEach(el => el.addEventListener("click", event => {
+    const group = state.groups.find(item => item.id === event.target.dataset.groupId);
+    group.conditions = group.conditions.filter(item => item.id !== event.target.dataset.conditionId);
+    if (!group.conditions.length) group.conditions = [createCondition(getAvailableDatasets()[0]?.code || "odhObjects")];
+    renderGroups();
+    rerunAfterChange();
+  }));
+
+  document.querySelectorAll("[data-role='dataset'], [data-role='attribute'], [data-role='operator'], [data-role='value1'], [data-role='value2']").forEach(el => {
+    const eventName = el.tagName === "SELECT" ? "change" : "input";
+    el.addEventListener(eventName, event => {
+      const group = state.groups.find(item => item.id === event.target.dataset.groupId);
+      const condition = group.conditions.find(item => item.id === event.target.dataset.conditionId);
+      const role = event.target.dataset.role;
+      if (role === "dataset") {
+        condition.dataset = event.target.value;
+        condition.attribute = getAttributeOptions(condition.dataset)[0]?.code || "name";
+        condition.operator = getOperators(getAttributeMeta(condition.dataset, condition.attribute)?.type || "text")[0]?.code || "eq";
+        condition.value1 = "";
+        condition.value2 = "";
+        renderGroups();
+      } else if (role === "attribute") {
+        condition.attribute = event.target.value;
+        condition.operator = getOperators(getAttributeMeta(condition.dataset, condition.attribute)?.type || "text")[0]?.code || "eq";
+        condition.value1 = "";
+        condition.value2 = "";
+        renderGroups();
+      } else if (role === "operator") {
+        condition.operator = event.target.value;
+        condition.value1 = "";
+        condition.value2 = "";
+        renderGroups();
+      } else if (role === "value1") {
+        condition.value1 = event.target.value;
+      } else if (role === "value2") {
+        condition.value2 = event.target.value;
+      }
+      rerunAfterChange();
     });
   });
-
-  container.querySelectorAll('[data-role="attribute"]').forEach(el => {
-    el.addEventListener("change", event => {
-      const criterion = state.criteria.find(item => item.id === event.target.dataset.id);
-      criterion.attribute = event.target.value;
-      const attrMeta = getAttributeMeta(criterion.dataset, criterion.attribute);
-      criterion.operator = getOperators(attrMeta?.type || "text")[0].code;
-      criterion.value1 = "";
-      criterion.value2 = "";
-      rerenderCriteriaEverywhere();
-      if (state.isCalculated) rerunAfterChange();
-    });
-  });
-
-  container.querySelectorAll('[data-role="operator"]').forEach(el => {
-    el.addEventListener("change", event => {
-      const criterion = state.criteria.find(item => item.id === event.target.dataset.id);
-      criterion.operator = event.target.value;
-      criterion.value1 = "";
-      criterion.value2 = "";
-      rerenderCriteriaEverywhere();
-      if (state.isCalculated) rerunAfterChange();
-    });
-  });
-
-  container.querySelectorAll('[data-role="value1"]').forEach(el => {
-    el.addEventListener("input", event => {
-      const criterion = state.criteria.find(item => item.id === event.target.dataset.id);
-      criterion.value1 = event.target.value;
-      if (state.isCalculated) rerunAfterChange();
-    });
-  });
-
-  container.querySelectorAll('[data-role="value2"]').forEach(el => {
-    el.addEventListener("input", event => {
-      const criterion = state.criteria.find(item => item.id === event.target.dataset.id);
-      criterion.value2 = event.target.value;
-      if (state.isCalculated) rerunAfterChange();
-    });
-  });
-
-  container.querySelectorAll('[data-role="join"]').forEach(el => {
-    el.addEventListener("change", event => {
-      const criterion = state.criteria.find(item => item.id === event.target.dataset.id);
-      criterion.join = event.target.value;
-      if (state.isCalculated) rerunAfterChange();
-    });
-  });
-
-  container.querySelectorAll(".criterion-remove-btn").forEach(el => {
-    el.addEventListener("click", event => {
-      const id = event.currentTarget.dataset.id;
-      state.criteria = state.criteria.filter(item => item.id !== id);
-      rerenderCriteriaEverywhere();
-      if (state.isCalculated) rerunAfterChange();
-    });
-  });
-}
-
-function attachWeightEvents(targetId = "weightsList") {
-  const container = document.getElementById(targetId);
-
-  container.querySelectorAll('[data-role="weight-field"]').forEach(el => {
-    el.addEventListener("change", event => {
-      const weight = state.weights.find(item => item.id === event.target.dataset.id);
-      weight.field = event.target.value;
-      rerenderWeightsEverywhere();
-      if (state.isCalculated) rerenderResultsOnly();
-    });
-  });
-
-  container.querySelectorAll('[data-role="weight-value"]').forEach(el => {
-    el.addEventListener("input", event => {
-      const weight = state.weights.find(item => item.id === event.target.dataset.id);
-      weight.value = Number(event.target.value || 0);
-      rerenderWeightsEverywhere();
-      if (state.isCalculated) rerenderResultsOnly();
-    });
-  });
-
-  container.querySelectorAll('[data-role="weight-title"]').forEach(el => {
-    el.addEventListener("input", event => {
-      const weight = state.weights.find(item => item.id === event.target.dataset.id);
-      weight.title = event.target.value;
-    });
-  });
-
-  container.querySelectorAll(".weight-remove-btn").forEach(el => {
-    el.addEventListener("click", event => {
-      const id = event.currentTarget.dataset.id;
-      state.weights = state.weights.filter(item => item.id !== id);
-      rerenderWeightsEverywhere();
-      if (state.isCalculated) rerenderResultsOnly();
-    });
-  });
-}
-
-function rerenderCriteriaEverywhere() {
-  renderCriteria("criteriaList");
-  if (state.isCalculated) {
-    renderCriteria("criteriaMirror");
-  }
-}
-
-function rerenderWeightsEverywhere() {
-  renderWeights("weightsList");
-  if (state.isCalculated) {
-    renderWeights("weightsMirror");
-  }
 }
 
 function parseByType(value, type) {
-  if (value === null || value === undefined) return value;
+  if (value === null || value === undefined || value === "") return value;
   if (type === "number") return Number(value);
   if (type === "boolean") {
     if (typeof value === "boolean") return value;
-    return String(value).toLowerCase() === "true" || String(value).toLowerCase() === "да";
+    const normalized = String(value).trim().toLowerCase();
+    return normalized === "true" || normalized === "да" || normalized === "1";
   }
-  return String(value).toLowerCase();
+  return String(value).trim().toLowerCase();
 }
 
-function compareValue(recordValue, criterion) {
-  const attrMeta = getAttributeMeta(criterion.dataset, criterion.attribute);
+function compareValue(recordValue, condition) {
+  const attrMeta = getAttributeMeta(condition.dataset, condition.attribute);
   const type = attrMeta?.type || "text";
   const value = parseByType(recordValue, type);
-  const c1 = parseByType(criterion.value1, type);
-  const c2 = parseByType(criterion.value2, type);
+  const c1 = parseByType(condition.value1, type);
+  const c2 = parseByType(condition.value2, type);
 
-  switch (criterion.operator) {
-    case "eq":
-      return value === c1;
-    case "neq":
-      return value !== c1;
-    case "gt":
-      return value > c1;
-    case "gte":
-      return value >= c1;
-    case "lt":
-      return value < c1;
-    case "lte":
-      return value <= c1;
-    case "contains":
-      return String(recordValue ?? "").toLowerCase().includes(String(criterion.value1 || "").toLowerCase());
-    case "notContains":
-      return !String(recordValue ?? "").toLowerCase().includes(String(criterion.value1 || "").toLowerCase());
-    case "between":
-      return value >= c1 && value <= c2;
-    case "isEmpty":
-      return recordValue === null || recordValue === undefined || recordValue === "";
-    case "notEmpty":
-      return !(recordValue === null || recordValue === undefined || recordValue === "");
-    default:
-      return false;
+  switch (condition.operator) {
+    case "eq": return value === c1;
+    case "neq": return value !== c1;
+    case "gt": return value > c1;
+    case "gte": return value >= c1;
+    case "lt": return value < c1;
+    case "lte": return value <= c1;
+    case "contains": return String(recordValue ?? "").toLowerCase().includes(String(condition.value1 ?? "").toLowerCase());
+    case "notContains": return !String(recordValue ?? "").toLowerCase().includes(String(condition.value1 ?? "").toLowerCase());
+    case "between": return value >= c1 && value <= c2;
+    case "isEmpty": return recordValue === null || recordValue === undefined || recordValue === "";
+    case "notEmpty": return !(recordValue === null || recordValue === undefined || recordValue === "");
+    default: return false;
   }
+}
+
+function evaluateGroup(record, group) {
+  if (!group.conditions.length) return true;
+  const results = group.conditions.map(condition => compareValue(record[condition.attribute], condition));
+  if (group.conditionsJoin === "AND") return results.every(Boolean);
+  if (group.conditionsJoin === "OR") return results.some(Boolean);
+  if (group.conditionsJoin === "NOT") return results.every(item => !item);
+  return true;
 }
 
 function applyCriteria(records) {
-  if (!state.criteria.length) return [...records];
-
+  if (!state.groups.length) return [...records];
   return records.filter(record => {
-    let result = null;
-
-    state.criteria.forEach((criterion, index) => {
-      const recordValue = record[criterion.attribute];
-      const current = compareValue(recordValue, criterion);
-
-      if (index === 0) {
-        result = current;
-        return;
-      }
-
-      if (criterion.join === "AND") result = result && current;
-      if (criterion.join === "OR") result = result || current;
-      if (criterion.join === "NOT") result = result && !current;
+    const values = state.groups.map(group => evaluateGroup(record, group));
+    let result = values[0] ?? true;
+    state.groups.forEach((group, index) => {
+      if (index === 0) return;
+      const current = values[index];
+      const prevJoin = state.groups[index - 1].joinToNext;
+      if (prevJoin === "AND") result = result && current;
+      if (prevJoin === "OR") result = result || current;
+      if (prevJoin === "NOT") result = result && !current;
     });
-
     return Boolean(result);
   });
 }
 
 function normalize(values, invert = false) {
-  const clean = values.map(v => Number(v || 0));
+  const clean = values.map(v => (v === null || v === undefined || Number.isNaN(Number(v)) ? 0 : Number(v)));
   const min = Math.min(...clean);
   const max = Math.max(...clean);
   const range = max - min || 1;
@@ -510,277 +441,323 @@ function getEffectiveWeights() {
     return Object.entries(baseWeights).map(([field, value]) => ({ field, value }));
   }
   const sum = state.weights.reduce((acc, item) => acc + Number(item.value || 0), 0);
-  if (sum !== 100) {
+  const unique = new Set(state.weights.map(item => item.field));
+  if (sum !== 100 || unique.size !== state.weights.length || !state.weights.length) {
     return Object.entries(baseWeights).map(([field, value]) => ({ field, value }));
   }
   return state.weights.map(item => ({ field: item.field, value: Number(item.value || 0) }));
 }
 
 function scoreRecords(records) {
-  const coverageNorm = normalize(records.map(item => item.coveragePercent), true);
-  const repairAgeNorm = normalize(records.map(item => item.repairAge));
-  const costNorm = normalize(records.map(item => item.estimatedCost), true);
-  const volumeNorm = normalize(records.map(item => item.recommendedVolume));
-
+  if (!records.length) return [];
   const normByField = {
-    coveragePercent: coverageNorm,
-    repairAge: repairAgeNorm,
-    estimatedCost: costNorm,
-    recommendedVolume: volumeNorm
+    coveragePercent: normalize(records.map(item => item.coveragePercent), true),
+    repairAge: normalize(records.map(item => item.repairAge)),
+    estimatedCost: normalize(records.map(item => item.estimatedCost), true),
+    recommendedVolume: normalize(records.map(item => item.recommendedVolume))
   };
-
   const effectiveWeights = getEffectiveWeights();
-
   return records.map((item, index) => {
     let score = 0;
     effectiveWeights.forEach(weight => {
-      const value = normByField[weight.field]?.[index] || 0;
-      score += value * (weight.value / 100);
+      score += (normByField[weight.field]?.[index] || 0) * (weight.value / 100);
     });
-    return {
-      ...item,
-      priorityScore: Number(score.toFixed(4))
-    };
+    const priorityScore = Number(score.toFixed(4));
+    const priorityLevel = priorityScore >= 0.75 ? "high" : priorityScore >= 0.45 ? "medium" : "low";
+    return { ...item, priorityScore, priorityLevel };
   }).sort((a, b) => b.priorityScore - a.priorityScore);
 }
 
-function priorityClass(score) {
-  if (score >= 0.75) return "high";
-  if (score >= 0.45) return "medium";
-  return "low";
+function summarize(records) {
+  return {
+    count: records.length,
+    uncovered: records.reduce((sum, item) => sum + Number(item.uncoveredArea || 0), 0),
+    volume: records.reduce((sum, item) => sum + Number(item.recommendedVolume || 0), 0),
+    cost: records.reduce((sum, item) => sum + Number(item.estimatedCost || 0), 0),
+    highPriority: records.filter(item => item.priorityLevel === "high").length
+  };
 }
 
 function renderSummary(records) {
+  const data = summarize(records);
   const container = document.getElementById("summaryCards");
-  const totalObjects = records.length;
-  const totalCoverageArea = records.reduce((sum, item) => sum + Number(item.coveredArea || 0), 0);
-  const totalUncovered = records.reduce((sum, item) => sum + Number(item.uncoveredArea || 0), 0);
-  const totalVolume = records.reduce((sum, item) => sum + Number(item.recommendedVolume || 0), 0);
-  const totalCost = records.reduce((sum, item) => sum + Number(item.estimatedCost || 0), 0);
-
-  const cards = [
-    { label: "Объектов в выборке", value: formatNumber(totalObjects), sub: "по текущим критериям" },
-    { label: "Суммарная площадь покрытия", value: `${formatNumber(totalCoverageArea)} м²`, sub: "по выбранным объектам" },
-    { label: "Суммарная непокрытая площадь", value: `${formatNumber(totalUncovered)} м²`, sub: "требует внимания" },
-    { label: "Рекомендуемый объем работ", value: `${formatNumber(totalVolume)} м²`, sub: "к планированию" },
-    { label: "Ориентировочная стоимость", value: formatCurrency(totalCost), sub: "расчетно по выборке" }
-  ];
-
-  container.innerHTML = cards.map(card => `
-    <div class="summary-card">
-      <div class="summary-label">${card.label}</div>
-      <div class="summary-value">${card.value}</div>
-      <div class="summary-sub">${card.sub}</div>
-    </div>
-  `).join("");
+  container.innerHTML = `
+    <div class="summary-card"><div class="summary-label">Объектов в выборке</div><div class="summary-value">${formatNumber(data.count)}</div><div class="summary-sub">После применения критериев</div></div>
+    <div class="summary-card"><div class="summary-label">Непокрытая площадь</div><div class="summary-value">${formatNumber(data.uncovered)}</div><div class="summary-sub">м²</div></div>
+    <div class="summary-card"><div class="summary-label">Рекомендуемый объем</div><div class="summary-value">${formatNumber(data.volume)}</div><div class="summary-sub">м²</div></div>
+    <div class="summary-card"><div class="summary-label">Ориентировочная стоимость</div><div class="summary-value">${formatCurrency(data.cost)}</div><div class="summary-sub">По расчетной модели</div></div>
+    <div class="summary-card"><div class="summary-label">Высокий приоритет</div><div class="summary-value">${formatNumber(data.highPriority)}</div><div class="summary-sub">Объектов в зоне высокого риска</div></div>
+  `;
 }
 
-function renderTable(records) {
-  const tbody = document.getElementById("resultsBody");
-  tbody.innerHTML = "";
+function getPriorityColor(level) {
+  if (level === "high") return "#16a34a";
+  if (level === "medium") return "#d97706";
+  return "#64748b";
+}
 
-  if (!records.length) {
-    tbody.innerHTML = `<tr><td colspan="16">По заданным критериям объекты не найдены.</td></tr>`;
-    return;
-  }
-
-  records.forEach(item => {
-    const level = priorityClass(item.priorityScore);
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td><span class="priority-pill ${level}">${item.priorityScore.toFixed(2)}</span></td>
-      <td>${item.objectId ?? "-"}</td>
-      <td>${item.name ?? "-"}</td>
-      <td>${item.sourceType ?? "-"}</td>
-      <td>${item.reason ?? "-"}</td>
-      <td>${formatNumber(item.coveragePercent, 1)}%</td>
-      <td>${formatNumber(item.coveredArea, 1)} м²</td>
-      <td>${formatNumber(item.uncoveredArea, 1)} м²</td>
-      <td>${formatNumber(item.recommendedVolume, 1)} м²</td>
-      <td>${formatCurrency(item.estimatedCost)}</td>
-      <td>${item.lastWorkYear ?? "—"}</td>
-      <td>${item.lastWorkYear ? `${item.repairAge} лет` : "—"}</td>
-      <td>${item.district ?? "-"}</td>
-      <td>${item.area ?? "-"}</td>
-      <td>${item.department ?? "-"}</td>
-      <td><span class="link-blue">Открыть карточку</span></td>
-    `;
-    tbody.appendChild(tr);
-  });
+function geometryToLatLngs(geojsonPolygon) {
+  if (!geojsonPolygon || geojsonPolygon.type !== "Polygon") return [];
+  return geojsonPolygon.coordinates[0].map(([lng, lat]) => [lat, lng]);
 }
 
 function ensureMap() {
   if (state.map) return;
-  state.map = L.map("map", { zoomControl: true }).setView([55.7558, 37.6176], 10);
-
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "&copy; OpenStreetMap contributors",
-    maxZoom: 19
+  state.map = L.map("map").setView([55.7558, 37.6176], 11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "© OpenStreetMap contributors"
   }).addTo(state.map);
-
-  state.mapLayerGroup = L.layerGroup().addTo(state.map);
 }
 
 function renderMap(records) {
   ensureMap();
-  state.mapLayerGroup.clearLayers();
-  if (!records.length) return;
-
+  state.layersByObjectId.forEach(layer => state.map.removeLayer(layer));
+  state.layersByObjectId.clear();
   const bounds = [];
 
   records.forEach(item => {
-    const level = priorityClass(item.priorityScore);
-    const style = level === "high"
-      ? { color: "#dc2626", fillColor: "#fca5a5", fillOpacity: 0.58, weight: 2 }
-      : level === "medium"
-        ? { color: "#d97706", fillColor: "#fcd34d", fillOpacity: 0.54, weight: 2 }
-        : { color: "#64748b", fillColor: "#cbd5e1", fillOpacity: 0.5, weight: 2 };
-
-    const polygon = L.polygon(item.geometry, style)
-      .bindPopup(`
-        <strong>${item.name}</strong><br>
-        ${item.sourceType}<br>
-        Покрытие: ${formatNumber(item.coveragePercent, 1)}%<br>
-        Непокрытая площадь: ${formatNumber(item.uncoveredArea, 1)} м²<br>
-        Приоритет: ${item.priorityScore.toFixed(2)}
-      `);
-
-    polygon.addTo(state.mapLayerGroup);
-    bounds.push(...item.geometry);
+    const latlngs = geometryToLatLngs(item.geometry?.odh);
+    if (!latlngs.length) return;
+    const color = getPriorityColor(item.priorityLevel);
+    const layer = L.polygon(latlngs, {
+      color,
+      weight: state.highlightedObjectId === item.objectId ? 4 : 2,
+      fillColor: color,
+      fillOpacity: state.highlightedObjectId === item.objectId ? 0.35 : 0.18
+    }).addTo(state.map);
+    layer.bindPopup(`
+      <div class="popup-title">${item.name}</div>
+      <div class="popup-meta">${item.district}, ${item.area}</div>
+      <div class="popup-meta">Покрытие: ${formatNumber(item.coveragePercent, 2)}%</div>
+      <div class="popup-meta">Основание: ${item.reason}</div>
+    `);
+    layer.on("click", () => focusObject(item.objectId));
+    state.layersByObjectId.set(item.objectId, layer);
+    bounds.push(...latlngs);
   });
 
-  state.map.fitBounds(L.latLngBounds(bounds).pad(0.15));
+  if (bounds.length) state.map.fitBounds(bounds, { padding: [20, 20] });
 }
 
-function validateRun() {
-  const selectedDatasets = new Set(state.criteria.map(item => item.dataset));
-  if (state.criteria.length === 0 && selectedDatasets.size < 2) {
-    return {
-      ok: false,
-      message: "Если критерии не заданы, в анализе должно участвовать минимум два набора."
-    };
+function focusObject(objectId) {
+  state.highlightedObjectId = objectId;
+  const layer = state.layersByObjectId.get(objectId);
+  if (layer) {
+    state.map.fitBounds(layer.getBounds(), { padding: [30, 30], maxZoom: 16 });
+    layer.openPopup();
   }
-  return { ok: true };
+  document.querySelectorAll("#resultsBody tr").forEach(tr => tr.classList.toggle("active-row", Number(tr.dataset.objectId) === Number(objectId)));
+  renderMap(state.analysisResults);
 }
 
-async function showLoadingAndRun() {
-  const validation = validateRun();
-  if (!validation.ok) {
-    alert(validation.message);
-    return;
-  }
+function renderTable(records) {
+  const body = document.getElementById("resultsBody");
+  body.innerHTML = "";
 
-  document.getElementById("analysisLoading").classList.remove("hidden");
-  const loadingStages = [
-    "Подготовка наборов",
-    "Проверка критериев",
-    "Поиск пересечений",
-    "Расчет показателей",
-    "Формирование приоритета",
-    "Подготовка результата"
-  ];
+  records.forEach((item, index) => {
+    const tr = document.createElement("tr");
+    tr.dataset.objectId = item.objectId;
+    tr.innerHTML = `
+      <td>${index + 1}</td>
+      <td>
+        <div class="object-title">${item.name}</div>
+        <div class="object-meta">ID ОДХ: ${item.objectId}</div>
+      </td>
+      <td>${item.sourceType || "—"}</td>
+      <td>${item.reason || "—"}</td>
+      <td>${formatNumber(item.coveragePercent, 2)}</td>
+      <td>${formatNumber(item.coveredArea, 2)}</td>
+      <td>${formatNumber(item.uncoveredArea, 2)}</td>
+      <td>${formatNumber(item.recommendedVolume, 2)}</td>
+      <td>${formatCurrency(item.estimatedCost)}</td>
+      <td>${item.lastWorkYear ?? "—"}</td>
+      <td>${item.repairAge ?? "—"}</td>
+      <td>${item.district || "—"}</td>
+      <td>${item.area || "—"}</td>
+      <td>${item.department || "—"}</td>
+      <td><span class="priority-badge ${item.priorityLevel}">${item.priorityLevel === "high" ? "Высокий" : item.priorityLevel === "medium" ? "Средний" : "Низкий"}</span></td>
+      <td><button class="btn btn-small" data-role="focus" data-object-id="${item.objectId}">На карте</button></td>
+    `;
+    body.appendChild(tr);
+  });
 
-  const stageEl = document.getElementById("loadingStage");
-  const percentEl = document.getElementById("loadingPercent");
-  const fillEl = document.getElementById("loadingBarFill");
-
-  for (let i = 0; i < loadingStages.length; i++) {
-    stageEl.textContent = `${loadingStages[i]}...`;
-    const percent = Math.round(((i + 1) / loadingStages.length) * 100);
-    percentEl.textContent = `${percent}%`;
-    fillEl.style.width = `${percent}%`;
-    await new Promise(resolve => setTimeout(resolve, 350));
-  }
-
-  document.getElementById("analysisLoading").classList.add("hidden");
-  state.isCalculated = true;
-  document.getElementById("resultsSection").classList.remove("hidden");
-  document.getElementById("runAnalysisBtn").classList.add("hidden");
-  document.getElementById("resetAnalysisBtn").classList.remove("hidden");
-
-  rerenderResultsOnly();
+  body.querySelectorAll("[data-role='focus']").forEach(btn => btn.addEventListener("click", event => {
+    focusObject(Number(event.target.dataset.objectId));
+  }));
 }
 
-function rerenderResultsOnly() {
-  const filtered = applyCriteria(objects);
-  const scored = scoreRecords(filtered);
-  renderSummary(scored);
-  renderMirrors(scored);
-  renderMap(scored);
-  renderTable(scored);
+function renderMirrors(records) {
+  const datasetView = document.getElementById("selectedDatasetsView");
+  datasetView.innerHTML = [...state.selectedDatasets].map(code => `<span class="chip">${datasetsMeta[code].label}</span>`).join("");
+
+  const criteriaMirror = document.getElementById("criteriaMirror");
+  criteriaMirror.innerHTML = state.groups.map((group, i) => {
+    const inner = group.conditions.map(condition => {
+      const dataset = datasetsMeta[condition.dataset]?.label || condition.dataset;
+      const attr = getAttributeMeta(condition.dataset, condition.attribute)?.label || condition.attribute;
+      let value = condition.operator === "between" ? `${condition.value1} … ${condition.value2}` : condition.value1 || "—";
+      if (condition.operator === "isEmpty" || condition.operator === "notEmpty") value = "без значения";
+      return `<div>• ${dataset} → ${attr} → ${condition.operator} → ${value}</div>`;
+    }).join("");
+    return `<div class="mirror-card"><div class="mirror-title">Группа ${i + 1}</div><div class="mirror-text">Связь внутри группы: ${group.conditionsJoin}<br>${inner}<br>Связь со следующей: ${group.joinToNext}</div></div>`;
+  }).join("");
+
+  const weightsMirror = document.getElementById("weightsMirror");
+  const effective = getEffectiveWeights();
+  weightsMirror.innerHTML = effective.map(weight => {
+    const label = weightableFields.find(item => item.code === weight.field)?.label || weight.field;
+    return `<div class="mirror-card"><div class="mirror-title">${label}</div><div class="mirror-text">Вес: ${weight.value}%</div></div>`;
+  }).join("");
+}
+
+function getFilteredDatasetBase() {
+  if (!state.selectedDatasets.size) return [];
+  return objects.filter(item => {
+    if (state.selectedDatasets.has("odhObjects") && item.sourceType === "Объекты ОДХ") return true;
+    if (state.selectedDatasets.has("odhWorks") && item.sourceType === "Работы на ОДХ") return true;
+    if (state.selectedDatasets.has("okbWorks") && item.sourceType === "Работы на ОКБ") return true;
+    return false;
+  });
 }
 
 function rerunAfterChange() {
-  if (!state.isCalculated) return;
-  rerenderResultsOnly();
+  if (!document.getElementById("resultsSection").classList.contains("hidden")) runAnalysis(false);
 }
 
-function exportToExcel() {
-  const filtered = applyCriteria(objects);
-  const scored = scoreRecords(filtered);
+function rerenderResultsOnly() {
+  if (!state.analysisResults.length) return;
+  const rescored = scoreRecords(applyCriteria(getFilteredDatasetBase()));
+  state.analysisResults = rescored;
+  renderSummary(rescored);
+  renderTable(rescored);
+  renderMap(rescored);
+  renderMirrors(rescored);
+}
 
-  const exportRows = scored.map(item => ({
-    "Приоритет": item.priorityScore.toFixed(2),
-    "ID объекта": item.objectId ?? "",
-    "Наименование": item.name ?? "",
-    "Тип набора": item.sourceType ?? "",
-    "Основание включения": item.reason ?? "",
-    "Процент покрытия": item.coveragePercent ?? "",
-    "Покрытая площадь": item.coveredArea ?? "",
-    "Непокрытая площадь": item.uncoveredArea ?? "",
-    "Рекомендуемый объем": item.recommendedVolume ?? "",
-    "Ориентировочная стоимость": item.estimatedCost ?? "",
-    "Последний год работ": item.lastWorkYear ?? "",
-    "Давность ремонта": item.repairAge ?? "",
-    "Округ": item.district ?? "",
-    "Район": item.area ?? "",
-    "ОИВ": item.department ?? "",
-    "Открыть карточку": "Открыть карточку"
+function animateLoading(callback) {
+  const section = document.getElementById("analysisLoading");
+  const fill = document.getElementById("loadingBarFill");
+  const percent = document.getElementById("loadingPercent");
+  const stage = document.getElementById("loadingStage");
+  section.classList.remove("hidden");
+  const steps = [
+    { value: 22, text: "Проверка выбранных наборов..." },
+    { value: 47, text: "Применение сложных критериев..." },
+    { value: 76, text: "Расчёт приоритета и весов..." },
+    { value: 100, text: "Подготовка карты и реестра..." }
+  ];
+  let i = 0;
+  function tick() {
+    const step = steps[i];
+    fill.style.width = `${step.value}%`;
+    percent.textContent = `${step.value}%`;
+    stage.textContent = step.text;
+    i += 1;
+    if (i < steps.length) setTimeout(tick, 160);
+    else setTimeout(() => { section.classList.add("hidden"); callback(); }, 180);
+  }
+  fill.style.width = "0%";
+  percent.textContent = "0%";
+  stage.textContent = "Подготовка наборов...";
+  setTimeout(tick, 80);
+}
+
+function runAnalysis(withAnimation = true) {
+  if (!state.selectedDatasets.size) {
+    alert("Выбери хотя бы один набор данных.");
+    return;
+  }
+  const execute = () => {
+    const filtered = applyCriteria(getFilteredDatasetBase());
+    const scored = scoreRecords(filtered);
+    state.analysisResults = scored;
+    document.getElementById("resultsSection").classList.remove("hidden");
+    renderSummary(scored);
+    renderTable(scored);
+    renderMap(scored);
+    renderMirrors(scored);
+  };
+  if (withAnimation) animateLoading(execute);
+  else execute();
+}
+
+function resetAll() {
+  state.selectedDatasets = new Set(["odhObjects", "odhWorks", "okbWorks"]);
+  state.customWeightsEnabled = false;
+  initState();
+  document.getElementById("customWeightsToggle").checked = false;
+  document.getElementById("resultsSection").classList.add("hidden");
+  state.analysisResults = [];
+  state.highlightedObjectId = null;
+  renderDatasetSelection();
+  renderWeights();
+  renderGroups();
+}
+
+function exportExcel() {
+  if (!state.analysisResults.length) return;
+  const rows = state.analysisResults.map((item, index) => ({
+    "#": index + 1,
+    "ID ОДХ": item.objectId,
+    "Наименование": item.name,
+    "Тип набора": item.sourceType,
+    "Основание включения": item.reason,
+    "Процент покрытия": item.coveragePercent,
+    "Покрытая площадь": item.coveredArea,
+    "Непокрытая площадь": item.uncoveredArea,
+    "Рекомендуемый объем": item.recommendedVolume,
+    "Стоимость": item.estimatedCost,
+    "Последний год": item.lastWorkYear,
+    "Давность": item.repairAge,
+    "Округ": item.district,
+    "Район": item.area,
+    "ОИВ": item.department,
+    "Приоритет": item.priorityLevel,
+    "Баллы": item.priorityScore
   }));
-
-  const worksheet = XLSX.utils.json_to_sheet(exportRows);
+  const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Реестр");
-  XLSX.writeFile(workbook, "predictive_analysis_registry.xlsx");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Анализ ОДХ");
+  XLSX.writeFile(workbook, "predictive_analysis_odh.xlsx");
 }
 
-function bindGlobalEvents() {
-  document.getElementById("addCriterionBtn").addEventListener("click", () => {
-    state.criteria.push(createCriterion());
-    rerenderCriteriaEverywhere();
-  });
-
+function attachTopLevelEvents() {
   document.getElementById("customWeightsToggle").addEventListener("change", event => {
     state.customWeightsEnabled = event.target.checked;
-    document.getElementById("weightsEditor").classList.toggle("disabled-block", !state.customWeightsEnabled);
-    renderWeightStatus();
-    if (state.isCalculated) rerenderResultsOnly();
+    renderWeights();
+    rerenderResultsOnly();
   });
-
   document.getElementById("addWeightBtn").addEventListener("click", () => {
-    state.weights.push(createWeight());
-    rerenderWeightsEverywhere();
+    state.weights.push(createWeight(weightableFields[0]?.code || "coveragePercent", 0));
+    renderWeights();
   });
-
-  document.getElementById("runAnalysisBtn").addEventListener("click", showLoadingAndRun);
-
-  document.getElementById("resetAnalysisBtn").addEventListener("click", () => {
-    state.isCalculated = false;
-    document.getElementById("resultsSection").classList.add("hidden");
-    document.getElementById("runAnalysisBtn").classList.remove("hidden");
-    document.getElementById("resetAnalysisBtn").classList.add("hidden");
-    document.getElementById("loadingBarFill").style.width = "0%";
-    document.getElementById("loadingPercent").textContent = "0%";
+  document.getElementById("resetWeightsBtn").addEventListener("click", () => {
+    state.weights = [
+      createWeight("coveragePercent", 35),
+      createWeight("repairAge", 25),
+      createWeight("estimatedCost", 20),
+      createWeight("recommendedVolume", 20)
+    ];
+    renderWeights();
+    rerenderResultsOnly();
   });
-
-  document.getElementById("exportExcelBtn").addEventListener("click", exportToExcel);
+  document.getElementById("addGroupBtn").addEventListener("click", () => {
+    if (!getAvailableDatasets().length) return;
+    state.groups.push(createGroup(getAvailableDatasets()[0].code));
+    renderGroups();
+  });
+  document.getElementById("runAnalysisBtn").addEventListener("click", () => runAnalysis(true));
+  document.getElementById("resetAnalysisBtn").addEventListener("click", resetAll);
+  document.getElementById("exportExcelBtn").addEventListener("click", exportExcel);
 }
 
-function boot() {
+function bootstrap() {
   initState();
-  renderCriteria("criteriaList");
-  renderWeights("weightsList");
-  bindGlobalEvents();
+  renderDatasetSelection();
+  renderWeights();
+  renderGroups();
+  attachTopLevelEvents();
 }
 
-boot();
+bootstrap();
