@@ -90,7 +90,7 @@ function createCondition(datasetCode) {
 }
 function createGroup(defaultDataset) {
   const datasetCode = defaultDataset || getAvailableDatasets()[0]?.code || "odhObjects";
-  return { id: uid(), joinToNext: "AND", conditionsJoin: "AND", weight: 10, conditions: [createCondition(datasetCode)] };
+  return { id: uid(), joinToNext: "AND", conditionsJoin: "AND", conditions: [createCondition(datasetCode)] };
 }
 function createWeight(field = "coveragePercent", value = 25) { return { id: uid(), field, value }; }
 function initState() {
@@ -228,10 +228,6 @@ function renderGroups() {
           <div class="row-note">Внутри группы — <strong>${group.conditionsJoin === "AND" ? "И" : group.conditionsJoin === "OR" ? "ИЛИ" : "НЕ"}</strong>. Между группами — <strong>${group.joinToNext === "AND" ? "И" : group.joinToNext === "OR" ? "ИЛИ" : "НЕ"}</strong>.</div>
         </div>
         <div class="group-controls">
-          <div class="group-weight-box">
-            <span class="group-weight-label">Вес группы</span>
-            <input type="number" min="0" max="100" data-role="group-weight" data-group-id="${group.id}" value="${group.weight ?? 10}" />
-          </div>
           <select data-role="group-join" data-group-id="${group.id}">
             <option value="AND" ${group.joinToNext === "AND" ? "selected" : ""}>Связь со следующей: И</option>
             <option value="OR" ${group.joinToNext === "OR" ? "selected" : ""}>Связь со следующей: ИЛИ</option>
@@ -261,6 +257,8 @@ function renderGroups() {
       const useMultiSelect = !emptyOp && !between && ["eq","neq","contains","notContains"].includes(condition.operator) && ["objectId","name"].includes(condition.attribute) && suggestions.length > 0;
       const row = document.createElement("div");
       row.className = "criterion-row";
+      const multiMode = !emptyOp && !between && ["eq","neq","contains","notContains"].includes(condition.operator) && ["objectId","name"].includes(condition.attribute) && suggestions.length > 0;
+      const multiSelectedText = selectedValues.length ? `${selectedValues.length} выбрано` : "Выбрать значения";
       row.innerHTML = `
         <div class="criterion-grid">
           <div><div class="row-note">Строка</div><div>${conditionIndex + 1}</div></div>
@@ -268,9 +266,29 @@ function renderGroups() {
           <select data-role="attribute" data-group-id="${group.id}" data-condition-id="${condition.id}">${attrOptions.map(item => `<option value="${item.code}" ${item.code === condition.attribute ? "selected" : ""}>${item.label}</option>`).join("")}</select>
           <select data-role="operator" data-group-id="${group.id}" data-condition-id="${condition.id}">${operators.map(item => `<option value="${item.code}" ${item.code === condition.operator ? "selected" : ""}>${item.label}</option>`).join("")}</select>
           <div class="criterion-value-box">
-            <input data-role="value1" data-group-id="${group.id}" data-condition-id="${condition.id}" value="${condition.value1 ?? ""}" list="${datalistId}" placeholder="${emptyOp ? "Не нужно" : "Значение или несколько через запятую"}" ${emptyOp ? "disabled" : ""} />
-            <datalist id="${datalistId}">${suggestions.map(v => `<option value="${String(v).replace(/"/g,'&quot;')}"></option>`).join("")}</datalist>
-            ${useMultiSelect ? `<select multiple size="${Math.min(5, Math.max(3, suggestions.length))}" data-role="value-multi" data-group-id="${group.id}" data-condition-id="${condition.id}" class="criterion-multi-select">${suggestions.map(v => { const str = String(v); const selected = selectedValues.includes(str) ? 'selected' : ''; return `<option value="${str.replace(/"/g,'&quot;')}" ${selected}>${str}</option>`; }).join("")}</select><div class="row-note">Можно выбрать несколько значений сразу.</div>` : ''}
+            ${multiMode ? `
+              <details class="multi-picker" data-role="multi-picker" data-group-id="${group.id}" data-condition-id="${condition.id}">
+                <summary class="multi-picker-summary">${multiSelectedText}</summary>
+                <div class="multi-picker-panel">
+                  <input class="multi-picker-search" type="text" placeholder="Найти значение..." data-role="multi-search" data-group-id="${group.id}" data-condition-id="${condition.id}" />
+                  <div class="multi-picker-actions">
+                    <button type="button" class="btn btn-small" data-role="multi-select-all" data-group-id="${group.id}" data-condition-id="${condition.id}">Выбрать все</button>
+                    <button type="button" class="btn btn-small" data-role="multi-clear" data-group-id="${group.id}" data-condition-id="${condition.id}">Сбросить</button>
+                  </div>
+                  <div class="multi-picker-list" data-role="multi-list" data-group-id="${group.id}" data-condition-id="${condition.id}">
+                    ${suggestions.map(v => {
+                      const str = String(v);
+                      const checked = selectedValues.includes(str) ? 'checked' : '';
+                      return `<label class="multi-picker-option" data-value="${str.replace(/"/g,'&quot;')}"><input type="checkbox" value="${str.replace(/"/g,'&quot;')}" ${checked} data-role="multi-option" data-group-id="${group.id}" data-condition-id="${condition.id}" /> <span>${str}</span></label>`;
+                    }).join("")}
+                  </div>
+                </div>
+              </details>
+              <input type="hidden" data-role="value1" data-group-id="${group.id}" data-condition-id="${condition.id}" value="${condition.value1 ?? ""}" />
+            ` : `
+              <input data-role="value1" data-group-id="${group.id}" data-condition-id="${condition.id}" value="${condition.value1 ?? ""}" list="${datalistId}" placeholder="${emptyOp ? "Не нужно" : "Значение или несколько через запятую"}" ${emptyOp ? "disabled" : ""} />
+              <datalist id="${datalistId}">${suggestions.map(v => `<option value="${String(v).replace(/"/g,'&quot;')}"></option>`).join("")}</datalist>
+            `}
           </div>
           <input data-role="value2" data-group-id="${group.id}" data-condition-id="${condition.id}" value="${condition.value2 ?? ""}" placeholder="${between ? "До" : "Не используется"}" ${between ? "" : "disabled"} />
           <button class="btn btn-small" data-role="remove-condition" data-group-id="${group.id}" data-condition-id="${condition.id}">Удалить</button>
@@ -284,12 +302,11 @@ function renderGroups() {
 function attachGroupEvents() {
   document.querySelectorAll("[data-role='group-join']").forEach(el => el.addEventListener("change", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.joinToNext = e.target.value; renderGroups(); rerunAfterChange(); }));
   document.querySelectorAll("[data-role='conditions-join']").forEach(el => el.addEventListener("change", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.conditionsJoin = e.target.value; renderGroups(); rerunAfterChange(); }));
-  document.querySelectorAll("[data-role='group-weight']").forEach(el => el.addEventListener("input", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.weight = Number(e.target.value || 0); rerunAfterChange(); }));
   document.querySelectorAll("[data-role='add-condition']").forEach(el => el.addEventListener("click", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.conditions.push(createCondition(getAvailableDatasets()[0]?.code || "odhObjects")); renderGroups(); }));
   document.querySelectorAll("[data-role='remove-group']").forEach(el => el.addEventListener("click", e => { state.groups = state.groups.filter(i => i.id !== e.target.dataset.groupId); if (!state.groups.length && getAvailableDatasets().length) state.groups = [createGroup(getAvailableDatasets()[0].code)]; renderGroups(); rerunAfterChange(); }));
   document.querySelectorAll("[data-role='remove-condition']").forEach(el => el.addEventListener("click", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.conditions = g.conditions.filter(i => i.id !== e.target.dataset.conditionId); if (!g.conditions.length) g.conditions = [createCondition(getAvailableDatasets()[0]?.code || "odhObjects")]; renderGroups(); rerunAfterChange(); }));
-  document.querySelectorAll("[data-role='dataset'], [data-role='attribute'], [data-role='operator'], [data-role='value1'], [data-role='value2'], [data-role='value-multi']").forEach(el => {
-    const eventName = el.tagName === "SELECT" ? "change" : "input";
+  document.querySelectorAll("[data-role='dataset'], [data-role='attribute'], [data-role='operator'], [data-role='value1'], [data-role='value2']").forEach(el => {
+    const eventName = (el.tagName === "SELECT" || el.type === "hidden") ? "change" : "input";
     el.addEventListener(eventName, e => {
       const g = state.groups.find(i => i.id === e.target.dataset.groupId);
       const c = g.conditions.find(i => i.id === e.target.dataset.conditionId);
@@ -302,8 +319,49 @@ function attachGroupEvents() {
         c.operator = e.target.value; c.value1 = ""; c.value2 = ""; renderGroups();
       } else if (role === "value1") c.value1 = e.target.value;
       else if (role === "value2") c.value2 = e.target.value;
-      else if (role === "value-multi") c.value1 = [...e.target.selectedOptions].map(option => option.value).join(', ');
       rerunAfterChange();
+    });
+  });
+
+  document.querySelectorAll("[data-role='multi-option']").forEach(el => {
+    el.addEventListener("change", e => {
+      const g = state.groups.find(i => i.id === e.target.dataset.groupId);
+      const c = g.conditions.find(i => i.id === e.target.dataset.conditionId);
+      const list = [...document.querySelectorAll(`[data-role="multi-option"][data-group-id="${e.target.dataset.groupId}"][data-condition-id="${e.target.dataset.conditionId}"]`)]
+        .filter(inp => inp.checked)
+        .map(inp => inp.value);
+      c.value1 = list.join(', ');
+      const hidden = document.querySelector(`[data-role="value1"][data-group-id="${e.target.dataset.groupId}"][data-condition-id="${e.target.dataset.conditionId}"]`);
+      if (hidden) hidden.value = c.value1;
+      const summary = document.querySelector(`[data-role="multi-picker"][data-group-id="${e.target.dataset.groupId}"][data-condition-id="${e.target.dataset.conditionId}"] .multi-picker-summary`);
+      if (summary) summary.textContent = list.length ? `${list.length} выбрано` : 'Выбрать значения';
+      rerunAfterChange();
+    });
+  });
+
+  document.querySelectorAll("[data-role='multi-search']").forEach(el => {
+    el.addEventListener("input", e => {
+      const term = String(e.target.value || "").toLowerCase();
+      document.querySelectorAll(`[data-role="multi-list"][data-group-id="${e.target.dataset.groupId}"][data-condition-id="${e.target.dataset.conditionId}"] .multi-picker-option`).forEach(opt => {
+        const txt = opt.dataset.value.toLowerCase();
+        opt.classList.toggle("hidden", !txt.includes(term));
+      });
+    });
+  });
+
+  document.querySelectorAll("[data-role='multi-select-all']").forEach(el => {
+    el.addEventListener("click", e => {
+      const opts = [...document.querySelectorAll(`[data-role="multi-option"][data-group-id="${e.target.dataset.groupId}"][data-condition-id="${e.target.dataset.conditionId}"]`)];
+      opts.forEach(inp => { if (!inp.closest('.hidden')) inp.checked = true; });
+      opts[0]?.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  });
+
+  document.querySelectorAll("[data-role='multi-clear']").forEach(el => {
+    el.addEventListener("click", e => {
+      const opts = [...document.querySelectorAll(`[data-role="multi-option"][data-group-id="${e.target.dataset.groupId}"][data-condition-id="${e.target.dataset.conditionId}"]`)];
+      opts.forEach(inp => inp.checked = false);
+      opts[0]?.dispatchEvent(new Event('change', { bubbles: true }));
     });
   });
 }
@@ -471,7 +529,7 @@ function renderTable(records) {
 }
 function renderMirrors(records) {
   document.getElementById('selectedDatasetsView').innerHTML = [...state.selectedDatasets].map(code => `<span class="chip">${datasetsMeta[code].label}</span>`).join('');
-  document.getElementById('criteriaMirror').innerHTML = state.groups.map((group, idx) => `<div class="mirror-card"><div class="mirror-title">Группа ${idx + 1} · вес ${group.weight ?? 0}%</div><div class="mirror-text">${group.conditions.map(c => `${datasetsMeta[c.dataset].label} → ${getAttributeMeta(c.dataset, c.attribute)?.label || c.attribute} ${c.operator}${c.value1 ? ' ' + c.value1 : ''}${c.value2 ? ' до ' + c.value2 : ''}`).join(`<br>${group.conditionsJoin} `)}</div></div>`).join('');
+  document.getElementById('criteriaMirror').innerHTML = state.groups.map((group, idx) => `<div class="mirror-card"><div class="mirror-title">Группа ${idx + 1}</div><div class="mirror-text">${group.conditions.map(c => `${datasetsMeta[c.dataset].label} → ${getAttributeMeta(c.dataset, c.attribute)?.label || c.attribute} ${c.operator}${c.value1 ? ' ' + c.value1 : ''}${c.value2 ? ' до ' + c.value2 : ''}`).join(`<br>${group.conditionsJoin} `)}</div></div>`).join('');
   document.getElementById('weightsMirror').innerHTML = getEffectiveWeights().map(w => `<div class="mirror-card"><div class="mirror-title">${getWeightFieldLabel(w.field)}</div><div class="mirror-text">${w.value}%</div></div>`).join('');
 }
 function rerunAfterChange() { if (!document.getElementById('resultsSection').classList.contains('hidden')) runAnalysis(false); }
