@@ -103,3 +103,14 @@ input, select { width: 100%; min-width: 0; border: 1px solid var(--border); back
   .hero-card, .card-head { flex-direction: column; }
   #map { height: 380px; }
 }
+
+.compact-card { padding: 16px 18px; }
+.compact-dataset-grid { grid-template-columns: repeat(3, minmax(220px, 1fr)); }
+.dataset-card { min-height: 118px; align-content: start; }
+.dataset-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.dataset-card input[type="checkbox"] { width: 18px; height: 18px; margin-top: 2px; }
+#builderSection.hidden { display: none !important; }
+#datasetSummaryCard .chip { font-size: 13px; padding: 7px 12px; }
+@media (max-width: 1180px) {
+  .compact-dataset-grid { grid-template-columns: 1fr; }
+}
