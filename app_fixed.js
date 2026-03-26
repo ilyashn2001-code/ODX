@@ -53,6 +53,20 @@ function getAvailableDatasets() {
 function getDatasetMeta(code) { return datasetsMeta[code]; }
 function getAttributeOptions(datasetCode) { return getDatasetMeta(datasetCode)?.attributes || []; }
 function getAttributeMeta(datasetCode, attrCode) { return getAttributeOptions(datasetCode).find(item => item.code === attrCode); }
+function getSourceTypesForDataset(datasetCode) {
+  if (datasetCode === "odhObjects") return ["Объекты ОДХ"];
+  if (datasetCode === "odhWorks") return ["Работы на ОДХ"];
+  if (datasetCode === "okbWorks") return ["Работы на ОКБ"];
+  return [];
+}
+function getAttributeSuggestions(datasetCode, attrCode) {
+  const sourceTypes = new Set(getSourceTypesForDataset(datasetCode));
+  return [...new Set(objects
+    .filter(item => sourceTypes.has(item.sourceType))
+    .map(item => item[attrCode])
+    .filter(v => v !== null && v !== undefined && v !== ""))]
+    .slice(0, 100);
+}
 function getOperators(type) { return OPERATORS_BY_TYPE[type] || OPERATORS_BY_TYPE.text; }
 function createCondition(datasetCode) {
   const attr = getAttributeOptions(datasetCode)[0];
@@ -60,7 +74,7 @@ function createCondition(datasetCode) {
 }
 function createGroup(defaultDataset) {
   const datasetCode = defaultDataset || getAvailableDatasets()[0]?.code || "odhObjects";
-  return { id: uid(), joinToNext: "AND", conditionsJoin: "AND", conditions: [createCondition(datasetCode)] };
+  return { id: uid(), joinToNext: "AND", conditionsJoin: "AND", weight: 10, conditions: [createCondition(datasetCode)] };
 }
 function createWeight(field = "coveragePercent", value = 25) { return { id: uid(), field, value }; }
 function initState() {
@@ -196,6 +210,10 @@ function renderGroups() {
           <div class="row-note">Внутри группы — <strong>${group.conditionsJoin === "AND" ? "И" : group.conditionsJoin === "OR" ? "ИЛИ" : "НЕ"}</strong>. Между группами — <strong>${group.joinToNext === "AND" ? "И" : group.joinToNext === "OR" ? "ИЛИ" : "НЕ"}</strong>.</div>
         </div>
         <div class="group-controls">
+          <div class="group-weight-box">
+            <span class="group-weight-label">Вес группы</span>
+            <input type="number" min="0" max="100" data-role="group-weight" data-group-id="${group.id}" value="${group.weight ?? 10}" />
+          </div>
           <select data-role="group-join" data-group-id="${group.id}">
             <option value="AND" ${group.joinToNext === "AND" ? "selected" : ""}>Связь со следующей: И</option>
             <option value="OR" ${group.joinToNext === "OR" ? "selected" : ""}>Связь со следующей: ИЛИ</option>
@@ -219,6 +237,8 @@ function renderGroups() {
       const operators = getOperators(attrMeta?.type || "text");
       const between = condition.operator === "between";
       const emptyOp = condition.operator === "isEmpty" || condition.operator === "notEmpty";
+      const suggestions = getAttributeSuggestions(condition.dataset, condition.attribute);
+      const datalistId = `datalist-${group.id}-${condition.id}`;
       const row = document.createElement("div");
       row.className = "criterion-row";
       row.innerHTML = `
@@ -227,7 +247,10 @@ function renderGroups() {
           <select data-role="dataset" data-group-id="${group.id}" data-condition-id="${condition.id}">${datasetOptions.map(item => `<option value="${item.code}" ${item.code === condition.dataset ? "selected" : ""}>${item.label}</option>`).join("")}</select>
           <select data-role="attribute" data-group-id="${group.id}" data-condition-id="${condition.id}">${attrOptions.map(item => `<option value="${item.code}" ${item.code === condition.attribute ? "selected" : ""}>${item.label}</option>`).join("")}</select>
           <select data-role="operator" data-group-id="${group.id}" data-condition-id="${condition.id}">${operators.map(item => `<option value="${item.code}" ${item.code === condition.operator ? "selected" : ""}>${item.label}</option>`).join("")}</select>
-          <input data-role="value1" data-group-id="${group.id}" data-condition-id="${condition.id}" value="${condition.value1 ?? ""}" placeholder="${emptyOp ? "Не нужно" : "Значение"}" ${emptyOp ? "disabled" : ""} />
+          <div class="criterion-value-box">
+            <input data-role="value1" data-group-id="${group.id}" data-condition-id="${condition.id}" value="${condition.value1 ?? ""}" list="${datalistId}" placeholder="${emptyOp ? "Не нужно" : "Значение или несколько через запятую"}" ${emptyOp ? "disabled" : ""} />
+            <datalist id="${datalistId}">${suggestions.map(v => `<option value="${String(v).replace(/"/g,'&quot;')}"></option>`).join("")}</datalist>
+          </div>
           <input data-role="value2" data-group-id="${group.id}" data-condition-id="${condition.id}" value="${condition.value2 ?? ""}" placeholder="${between ? "До" : "Не используется"}" ${between ? "" : "disabled"} />
           <button class="btn btn-small" data-role="remove-condition" data-group-id="${group.id}" data-condition-id="${condition.id}">Удалить</button>
         </div>`;
@@ -240,6 +263,7 @@ function renderGroups() {
 function attachGroupEvents() {
   document.querySelectorAll("[data-role='group-join']").forEach(el => el.addEventListener("change", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.joinToNext = e.target.value; renderGroups(); rerunAfterChange(); }));
   document.querySelectorAll("[data-role='conditions-join']").forEach(el => el.addEventListener("change", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.conditionsJoin = e.target.value; renderGroups(); rerunAfterChange(); }));
+  document.querySelectorAll("[data-role='group-weight']").forEach(el => el.addEventListener("input", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.weight = Number(e.target.value || 0); rerunAfterChange(); }));
   document.querySelectorAll("[data-role='add-condition']").forEach(el => el.addEventListener("click", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.conditions.push(createCondition(getAvailableDatasets()[0]?.code || "odhObjects")); renderGroups(); }));
   document.querySelectorAll("[data-role='remove-group']").forEach(el => el.addEventListener("click", e => { state.groups = state.groups.filter(i => i.id !== e.target.dataset.groupId); if (!state.groups.length && getAvailableDatasets().length) state.groups = [createGroup(getAvailableDatasets()[0].code)]; renderGroups(); rerunAfterChange(); }));
   document.querySelectorAll("[data-role='remove-condition']").forEach(el => el.addEventListener("click", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.conditions = g.conditions.filter(i => i.id !== e.target.dataset.conditionId); if (!g.conditions.length) g.conditions = [createCondition(getAvailableDatasets()[0]?.code || "odhObjects")]; renderGroups(); rerunAfterChange(); }));
@@ -271,10 +295,18 @@ function parseByType(value, type) {
 function compareValue(recordValue, condition) {
   const type = getAttributeMeta(condition.dataset, condition.attribute)?.type || "text";
   const value = parseByType(recordValue, type), c1 = parseByType(condition.value1, type), c2 = parseByType(condition.value2, type);
+  const rawList = String(condition.value1 ?? "").split(',').map(v => v.trim()).filter(Boolean);
+  const list = rawList.map(v => parseByType(v, type));
   switch (condition.operator) {
-    case "eq": return value === c1; case "neq": return value !== c1; case "gt": return value > c1; case "gte": return value >= c1; case "lt": return value < c1; case "lte": return value <= c1;
-    case "contains": return String(recordValue ?? "").toLowerCase().includes(String(condition.value1 ?? "").toLowerCase());
-    case "notContains": return !String(recordValue ?? "").toLowerCase().includes(String(condition.value1 ?? "").toLowerCase());
+    case "eq": return list.length > 1 ? list.includes(value) : value === c1;
+    case "neq": return list.length > 1 ? !list.includes(value) : value !== c1;
+    case "gt": return value > c1; case "gte": return value >= c1; case "lt": return value < c1; case "lte": return value <= c1;
+    case "contains": return list.length > 1
+      ? list.some(v => String(recordValue ?? "").toLowerCase().includes(String(v ?? "").toLowerCase()))
+      : String(recordValue ?? "").toLowerCase().includes(String(condition.value1 ?? "").toLowerCase());
+    case "notContains": return list.length > 1
+      ? list.every(v => !String(recordValue ?? "").toLowerCase().includes(String(v ?? "").toLowerCase()))
+      : !String(recordValue ?? "").toLowerCase().includes(String(condition.value1 ?? "").toLowerCase());
     case "between": return value >= c1 && value <= c2;
     case "isEmpty": return recordValue === null || recordValue === undefined || recordValue === "";
     case "notEmpty": return !(recordValue === null || recordValue === undefined || recordValue === "");
@@ -287,6 +319,12 @@ function evaluateGroup(record, group) {
   if (group.conditionsJoin === "OR") return results.some(Boolean);
   if (group.conditionsJoin === "NOT") return results.every(v => !v);
   return true;
+}
+function getGroupMatchWeight(record) {
+  const total = state.groups.reduce((sum, group) => sum + Number(group.weight || 0), 0);
+  if (!total) return 0;
+  const matched = state.groups.reduce((sum, group) => sum + (evaluateGroup(record, group) ? Number(group.weight || 0) : 0), 0);
+  return matched / total;
 }
 function applyCriteria(records) {
   if (!state.groups.length) return [...records];
@@ -323,8 +361,11 @@ function scoreRecords(records) {
   };
   const weights = getEffectiveWeights();
   return records.map((item, index) => {
-    let score = 0; weights.forEach(weight => { score += (normByField[weight.field]?.[index] || 0) * (weight.value / 100); });
-    return { ...item, priorityScore: Number(score.toFixed(4)), priorityLevel: score >= .75 ? 'high' : score >= .45 ? 'medium' : 'low' };
+    let score = 0;
+    weights.forEach(weight => { score += (normByField[weight.field]?.[index] || 0) * (weight.value / 100); });
+    const groupBonus = getGroupMatchWeight(item) * 0.15;
+    score += groupBonus;
+    return { ...item, criteriaGroupScore: Number(groupBonus.toFixed(4)), priorityScore: Number(score.toFixed(4)), priorityLevel: score >= .75 ? 'high' : score >= .45 ? 'medium' : 'low' };
   }).sort((a, b) => b.priorityScore - a.priorityScore);
 }
 function getFilteredDatasetBase() {
@@ -407,7 +448,7 @@ function renderTable(records) {
 }
 function renderMirrors(records) {
   document.getElementById('selectedDatasetsView').innerHTML = [...state.selectedDatasets].map(code => `<span class="chip">${datasetsMeta[code].label}</span>`).join('');
-  document.getElementById('criteriaMirror').innerHTML = state.groups.map((group, idx) => `<div class="mirror-card"><div class="mirror-title">Группа ${idx + 1}</div><div class="mirror-text">${group.conditions.map(c => `${datasetsMeta[c.dataset].label} → ${getAttributeMeta(c.dataset, c.attribute)?.label || c.attribute} ${c.operator}${c.value1 ? ' ' + c.value1 : ''}${c.value2 ? ' до ' + c.value2 : ''}`).join(`<br>${group.conditionsJoin} `)}</div></div>`).join('');
+  document.getElementById('criteriaMirror').innerHTML = state.groups.map((group, idx) => `<div class="mirror-card"><div class="mirror-title">Группа ${idx + 1} · вес ${group.weight ?? 0}%</div><div class="mirror-text">${group.conditions.map(c => `${datasetsMeta[c.dataset].label} → ${getAttributeMeta(c.dataset, c.attribute)?.label || c.attribute} ${c.operator}${c.value1 ? ' ' + c.value1 : ''}${c.value2 ? ' до ' + c.value2 : ''}`).join(`<br>${group.conditionsJoin} `)}</div></div>`).join('');
   document.getElementById('weightsMirror').innerHTML = getEffectiveWeights().map(w => `<div class="mirror-card"><div class="mirror-title">${weightableFields.find(f => f.code === w.field)?.label || w.field}</div><div class="mirror-text">${w.value}%</div></div>`).join('');
 }
 function rerunAfterChange() { if (!document.getElementById('resultsSection').classList.contains('hidden')) runAnalysis(false); }
