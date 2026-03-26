@@ -104,13 +104,63 @@ input, select { width: 100%; min-width: 0; border: 1px solid var(--border); back
   #map { height: 380px; }
 }
 
-.compact-card { padding: 16px 18px; }
-.compact-dataset-grid { grid-template-columns: repeat(3, minmax(220px, 1fr)); }
-.dataset-card { min-height: 118px; align-content: start; }
-.dataset-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.dataset-card input[type="checkbox"] { width: 18px; height: 18px; margin-top: 2px; }
-#builderSection.hidden { display: none !important; }
-#datasetSummaryCard .chip { font-size: 13px; padding: 7px 12px; }
+
+/* --- Layout tuning v3: more room for criteria, denser weights --- */
+.page-shell { max-width: 1660px; }
+.grid-two {
+  grid-template-columns: minmax(360px, 0.82fr) minmax(620px, 1.18fr);
+  align-items: start;
+}
+.card { padding: 16px; }
+.card-head { margin-bottom: 12px; }
+.base-box { padding: 12px; }
+.base-title, .subsection-title { margin-bottom: 6px; }
+.chip { padding: 5px 9px; font-size: 11px; }
+.toolbar-line { gap: 8px; }
+.toolbar-line .status-pill { margin-left: auto; }
+
+#weightsEditor { gap: 8px; }
+.weight-row { padding: 8px 10px; }
+.weight-grid {
+  grid-template-columns: minmax(0, 1fr) 88px 88px;
+  gap: 6px;
+}
+.weight-grid .btn { padding: 8px 10px; font-size: 13px; }
+#customWeightsToggle { margin-top: 2px; }
+.toggle-line { align-items: flex-start; gap: 10px; }
+
+.group-card { padding: 12px; }
+.group-head {
+  align-items: flex-start;
+  gap: 10px;
+}
+.group-controls {
+  justify-content: flex-end;
+  row-gap: 6px;
+}
+.group-controls select { min-width: 260px; }
+.criterion-row { padding: 8px 10px; }
+.criterion-grid {
+  grid-template-columns: 58px minmax(92px, .75fr) minmax(108px, 1fr) 64px minmax(110px, .9fr) minmax(110px, .9fr) 86px;
+  gap: 6px;
+}
+.criterion-grid > div:first-child {
+  align-self: center;
+}
+.row-note { font-size: 11px; margin-top: 0; }
+input, select { padding: 9px 10px; }
+
+@media (max-width: 1380px) {
+  .grid-two {
+    grid-template-columns: minmax(320px, 0.88fr) minmax(520px, 1.12fr);
+  }
+  .group-controls select { min-width: 220px; }
+  .criterion-grid {
+    grid-template-columns: 58px minmax(90px, .7fr) minmax(100px, .95fr) 60px minmax(100px, .85fr) minmax(100px, .85fr) 82px;
+  }
+}
+
 @media (max-width: 1180px) {
-  .compact-dataset-grid { grid-template-columns: 1fr; }
+  .toolbar-line .status-pill { margin-left: 0; }
+  .group-controls select { min-width: 0; }
 }
