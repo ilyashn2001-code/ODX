@@ -67,6 +67,22 @@ function getAttributeSuggestions(datasetCode, attrCode) {
     .filter(v => v !== null && v !== undefined && v !== ""))]
     .slice(0, 100);
 }
+function getGroupWeightFieldCode(groupId) { return `group:${groupId}`; }
+function getWeightFieldOptions() {
+  return [
+    ...weightableFields.map(item => ({ code: item.code, label: item.label })),
+    ...state.groups.map((group, index) => ({ code: getGroupWeightFieldCode(group.id), label: `Группа ${index + 1}` }))
+  ];
+}
+function getWeightFieldLabel(code) {
+  const item = getWeightFieldOptions().find(option => option.code === code);
+  return item?.label || code;
+}
+function cleanupWeights() {
+  const valid = new Set(getWeightFieldOptions().map(item => item.code));
+  state.weights = state.weights.filter(item => valid.has(item.field));
+  if (state.customWeightsEnabled && !state.weights.length) state.weights = [createWeight(weightableFields[0]?.code || 'coveragePercent', 100)];
+}
 function getOperators(type) { return OPERATORS_BY_TYPE[type] || OPERATORS_BY_TYPE.text; }
 function createCondition(datasetCode) {
   const attr = getAttributeOptions(datasetCode)[0];
@@ -155,13 +171,14 @@ function renderWeights() {
   const container = document.getElementById("weightsEditor");
   container.innerHTML = "";
   container.classList.toggle("disabled-block", !state.customWeightsEnabled);
+  const weightOptions = getWeightFieldOptions();
   state.weights.forEach(weight => {
     const row = document.createElement("div");
     row.className = "weight-row";
     row.innerHTML = `
       <div class="weight-grid">
         <select data-role="field" data-id="${weight.id}">
-          ${weightableFields.map(item => `<option value="${item.code}" ${item.code === weight.field ? "selected" : ""}>${item.label}</option>`).join("")}
+          ${weightOptions.map(item => `<option value="${item.code}" ${item.code === weight.field ? "selected" : ""}>${item.label}</option>`).join("")}
         </select>
         <input data-role="value" data-id="${weight.id}" type="number" min="0" max="100" value="${weight.value}" />
         <button class="btn btn-small" data-role="remove" data-id="${weight.id}">Удалить</button>
@@ -199,6 +216,7 @@ function renderGroups() {
   const container = document.getElementById("groupsList");
   container.innerHTML = "";
   const datasetOptions = getAvailableDatasets();
+  cleanupWeights();
   if (!datasetOptions.length) { container.innerHTML = `<div class="helper-text">Сначала выбери хотя бы один набор данных.</div>`; return; }
   state.groups.forEach((group, groupIndex) => {
     const groupEl = document.createElement("div");
@@ -239,6 +257,8 @@ function renderGroups() {
       const emptyOp = condition.operator === "isEmpty" || condition.operator === "notEmpty";
       const suggestions = getAttributeSuggestions(condition.dataset, condition.attribute);
       const datalistId = `datalist-${group.id}-${condition.id}`;
+      const selectedValues = String(condition.value1 ?? "").split(',').map(v => v.trim()).filter(Boolean);
+      const useMultiSelect = !emptyOp && !between && ["eq","neq","contains","notContains"].includes(condition.operator) && ["objectId","name"].includes(condition.attribute) && suggestions.length > 0;
       const row = document.createElement("div");
       row.className = "criterion-row";
       row.innerHTML = `
@@ -250,6 +270,7 @@ function renderGroups() {
           <div class="criterion-value-box">
             <input data-role="value1" data-group-id="${group.id}" data-condition-id="${condition.id}" value="${condition.value1 ?? ""}" list="${datalistId}" placeholder="${emptyOp ? "Не нужно" : "Значение или несколько через запятую"}" ${emptyOp ? "disabled" : ""} />
             <datalist id="${datalistId}">${suggestions.map(v => `<option value="${String(v).replace(/"/g,'&quot;')}"></option>`).join("")}</datalist>
+            ${useMultiSelect ? `<select multiple size="${Math.min(5, Math.max(3, suggestions.length))}" data-role="value-multi" data-group-id="${group.id}" data-condition-id="${condition.id}" class="criterion-multi-select">${suggestions.map(v => { const str = String(v); const selected = selectedValues.includes(str) ? 'selected' : ''; return `<option value="${str.replace(/"/g,'&quot;')}" ${selected}>${str}</option>`; }).join("")}</select><div class="row-note">Можно выбрать несколько значений сразу.</div>` : ''}
           </div>
           <input data-role="value2" data-group-id="${group.id}" data-condition-id="${condition.id}" value="${condition.value2 ?? ""}" placeholder="${between ? "До" : "Не используется"}" ${between ? "" : "disabled"} />
           <button class="btn btn-small" data-role="remove-condition" data-group-id="${group.id}" data-condition-id="${condition.id}">Удалить</button>
@@ -267,7 +288,7 @@ function attachGroupEvents() {
   document.querySelectorAll("[data-role='add-condition']").forEach(el => el.addEventListener("click", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.conditions.push(createCondition(getAvailableDatasets()[0]?.code || "odhObjects")); renderGroups(); }));
   document.querySelectorAll("[data-role='remove-group']").forEach(el => el.addEventListener("click", e => { state.groups = state.groups.filter(i => i.id !== e.target.dataset.groupId); if (!state.groups.length && getAvailableDatasets().length) state.groups = [createGroup(getAvailableDatasets()[0].code)]; renderGroups(); rerunAfterChange(); }));
   document.querySelectorAll("[data-role='remove-condition']").forEach(el => el.addEventListener("click", e => { const g = state.groups.find(i => i.id === e.target.dataset.groupId); g.conditions = g.conditions.filter(i => i.id !== e.target.dataset.conditionId); if (!g.conditions.length) g.conditions = [createCondition(getAvailableDatasets()[0]?.code || "odhObjects")]; renderGroups(); rerunAfterChange(); }));
-  document.querySelectorAll("[data-role='dataset'], [data-role='attribute'], [data-role='operator'], [data-role='value1'], [data-role='value2']").forEach(el => {
+  document.querySelectorAll("[data-role='dataset'], [data-role='attribute'], [data-role='operator'], [data-role='value1'], [data-role='value2'], [data-role='value-multi']").forEach(el => {
     const eventName = el.tagName === "SELECT" ? "change" : "input";
     el.addEventListener(eventName, e => {
       const g = state.groups.find(i => i.id === e.target.dataset.groupId);
@@ -281,6 +302,7 @@ function attachGroupEvents() {
         c.operator = e.target.value; c.value1 = ""; c.value2 = ""; renderGroups();
       } else if (role === "value1") c.value1 = e.target.value;
       else if (role === "value2") c.value2 = e.target.value;
+      else if (role === "value-multi") c.value1 = [...e.target.selectedOptions].map(option => option.value).join(', ');
       rerunAfterChange();
     });
   });
@@ -359,13 +381,14 @@ function scoreRecords(records) {
     estimatedCost: normalize(records.map(i => i.estimatedCost), true),
     recommendedVolume: normalize(records.map(i => i.recommendedVolume))
   };
+  state.groups.forEach(group => {
+    normByField[getGroupWeightFieldCode(group.id)] = records.map(item => evaluateGroup(item, group) ? 1 : 0);
+  });
   const weights = getEffectiveWeights();
   return records.map((item, index) => {
     let score = 0;
     weights.forEach(weight => { score += (normByField[weight.field]?.[index] || 0) * (weight.value / 100); });
-    const groupBonus = getGroupMatchWeight(item) * 0.15;
-    score += groupBonus;
-    return { ...item, criteriaGroupScore: Number(groupBonus.toFixed(4)), priorityScore: Number(score.toFixed(4)), priorityLevel: score >= .75 ? 'high' : score >= .45 ? 'medium' : 'low' };
+    return { ...item, priorityScore: Number(score.toFixed(4)), priorityLevel: score >= .75 ? 'high' : score >= .45 ? 'medium' : 'low' };
   }).sort((a, b) => b.priorityScore - a.priorityScore);
 }
 function getFilteredDatasetBase() {
@@ -449,7 +472,7 @@ function renderTable(records) {
 function renderMirrors(records) {
   document.getElementById('selectedDatasetsView').innerHTML = [...state.selectedDatasets].map(code => `<span class="chip">${datasetsMeta[code].label}</span>`).join('');
   document.getElementById('criteriaMirror').innerHTML = state.groups.map((group, idx) => `<div class="mirror-card"><div class="mirror-title">Группа ${idx + 1} · вес ${group.weight ?? 0}%</div><div class="mirror-text">${group.conditions.map(c => `${datasetsMeta[c.dataset].label} → ${getAttributeMeta(c.dataset, c.attribute)?.label || c.attribute} ${c.operator}${c.value1 ? ' ' + c.value1 : ''}${c.value2 ? ' до ' + c.value2 : ''}`).join(`<br>${group.conditionsJoin} `)}</div></div>`).join('');
-  document.getElementById('weightsMirror').innerHTML = getEffectiveWeights().map(w => `<div class="mirror-card"><div class="mirror-title">${weightableFields.find(f => f.code === w.field)?.label || w.field}</div><div class="mirror-text">${w.value}%</div></div>`).join('');
+  document.getElementById('weightsMirror').innerHTML = getEffectiveWeights().map(w => `<div class="mirror-card"><div class="mirror-title">${getWeightFieldLabel(w.field)}</div><div class="mirror-text">${w.value}%</div></div>`).join('');
 }
 function rerunAfterChange() { if (!document.getElementById('resultsSection').classList.contains('hidden')) runAnalysis(false); }
 function rerenderResultsOnly() { if (!state.analysisResults.length) return; const rescored = scoreRecords(applyCriteria(getFilteredDatasetBase())); state.analysisResults = rescored; renderSummary(rescored); renderTable(rescored); renderMap(rescored); renderMirrors(rescored); }
@@ -480,7 +503,7 @@ function attachTopLevelEvents() {
   });
   document.getElementById('editDatasetsBtn').addEventListener('click', () => setDatasetsConfirmed(false));
   document.getElementById('customWeightsToggle').addEventListener('change', e => { state.customWeightsEnabled = e.target.checked; renderWeights(); rerenderResultsOnly(); });
-  document.getElementById('addWeightBtn').addEventListener('click', () => { state.weights.push(createWeight(weightableFields[0]?.code || 'coveragePercent', 0)); renderWeights(); });
+  document.getElementById('addWeightBtn').addEventListener('click', () => { state.weights.push(createWeight(getWeightFieldOptions()[0]?.code || 'coveragePercent', 0)); renderWeights(); });
   document.getElementById('resetWeightsBtn').addEventListener('click', () => { state.weights = [createWeight('coveragePercent',35), createWeight('repairAge',25), createWeight('estimatedCost',20), createWeight('recommendedVolume',20)]; renderWeights(); rerenderResultsOnly(); });
   document.getElementById('addGroupBtn').addEventListener('click', () => { if (!getAvailableDatasets().length) return; state.groups.push(createGroup(getAvailableDatasets()[0].code)); renderGroups(); });
   document.getElementById('runAnalysisBtn').addEventListener('click', () => runAnalysis(true));
