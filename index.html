@@ -24,35 +24,19 @@
       </div>
     </header>
 
-    <section id="datasetStepCard" class="card compact-card">
-      <div class="card-head">
-        <div>
-          <h2>Шаг 1. Выбор наборов</h2>
-          <p>Сначала выбери, с какими наборами работает пользователь. После этого можно перейти к критериям и коэффициентам.</p>
+    <section class="grid-two">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Шаг 1. Наборы данных</h2>
+            <p>Сначала выбери, с какими наборами работает пользователь. Только выбранные наборы будут доступны в критериях.</p>
+          </div>
         </div>
-        <div class="toolbar-line compact">
-          <button id="continueDatasetsBtn" class="btn btn-primary btn-small">Далее</button>
-        </div>
+        <div id="datasetSelection" class="dataset-grid"></div>
+        <div class="helper-text">Для запуска анализа должен быть выбран хотя бы один набор.</div>
       </div>
-      <div id="datasetSelection" class="dataset-grid compact-dataset-grid"></div>
-      <div class="helper-text">Для продолжения должен быть выбран хотя бы один набор.</div>
-    </section>
 
-    <section id="datasetSummaryCard" class="card compact-card hidden">
-      <div class="card-head">
-        <div>
-          <h2>Выбранные наборы</h2>
-          <p>Эти наборы используются в критериях и анализе.</p>
-        </div>
-        <div class="toolbar-line compact">
-          <button id="editDatasetsBtn" class="btn btn-secondary btn-small">Изменить</button>
-        </div>
-      </div>
-      <div id="selectedDatasetsTop" class="chips-row wrap"></div>
-    </section>
-
-    <section id="builderSection" class="grid-two hidden">
-      <div id="weightsSection" class="card">
+      <div class="card">
         <div class="card-head">
           <div>
             <h2>Шаг 2. Весовые коэффициенты</h2>
@@ -79,19 +63,19 @@
           <div id="weightsStatus" class="status-pill neutral">Используются базовые коэффициенты</div>
         </div>
       </div>
+    </section>
 
-      <section id="criteriaSection" class="card">
-        <div class="card-head">
-          <div>
-            <h2>Шаг 3. Сложные критерии отбора</h2>
-            <p>Критерии собираются группами. Внутри группы можно настраивать строки условий, а между группами — связь И / ИЛИ / НЕ.</p>
-          </div>
-          <div class="toolbar-line compact">
-            <button id="addGroupBtn" class="btn btn-primary btn-small">Добавить группу</button>
-          </div>
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2>Шаг 3. Сложные критерии отбора</h2>
+          <p>Критерии собираются группами. Внутри группы можно настраивать строки условий, а между группами — связь И / ИЛИ / НЕ.</p>
         </div>
-        <div id="groupsList" class="stack"></div>
-      </section>
+        <div class="toolbar-line compact">
+          <button id="addGroupBtn" class="btn btn-primary btn-small">Добавить группу</button>
+        </div>
+      </div>
+      <div id="groupsList" class="stack"></div>
     </section>
 
     <section id="analysisLoading" class="card hidden">
