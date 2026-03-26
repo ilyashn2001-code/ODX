@@ -105,62 +105,41 @@ input, select { width: 100%; min-width: 0; border: 1px solid var(--border); back
 }
 
 
-/* --- Layout tuning v3: more room for criteria, denser weights --- */
-.page-shell { max-width: 1660px; }
-.grid-two {
-  grid-template-columns: minmax(360px, 0.82fr) minmax(620px, 1.18fr);
-  align-items: start;
-}
-.card { padding: 16px; }
-.card-head { margin-bottom: 12px; }
-.base-box { padding: 12px; }
-.base-title, .subsection-title { margin-bottom: 6px; }
-.chip { padding: 5px 9px; font-size: 11px; }
-.toolbar-line { gap: 8px; }
-.toolbar-line .status-pill { margin-left: auto; }
-
-#weightsEditor { gap: 8px; }
-.weight-row { padding: 8px 10px; }
-.weight-grid {
-  grid-template-columns: minmax(0, 1fr) 88px 88px;
-  gap: 6px;
-}
-.weight-grid .btn { padding: 8px 10px; font-size: 13px; }
-#customWeightsToggle { margin-top: 2px; }
-.toggle-line { align-items: flex-start; gap: 10px; }
-
-.group-card { padding: 12px; }
-.group-head {
-  align-items: flex-start;
-  gap: 10px;
-}
-.group-controls {
-  justify-content: flex-end;
-  row-gap: 6px;
-}
-.group-controls select { min-width: 260px; }
-.criterion-row { padding: 8px 10px; }
-.criterion-grid {
-  grid-template-columns: 58px minmax(92px, .75fr) minmax(108px, 1fr) 64px minmax(110px, .9fr) minmax(110px, .9fr) 86px;
-  gap: 6px;
-}
-.criterion-grid > div:first-child {
-  align-self: center;
-}
-.row-note { font-size: 11px; margin-top: 0; }
-input, select { padding: 9px 10px; }
-
-@media (max-width: 1380px) {
-  .grid-two {
-    grid-template-columns: minmax(320px, 0.88fr) minmax(520px, 1.12fr);
-  }
-  .group-controls select { min-width: 220px; }
-  .criterion-grid {
-    grid-template-columns: 58px minmax(90px, .7fr) minmax(100px, .95fr) 60px minmax(100px, .85fr) minmax(100px, .85fr) 82px;
-  }
-}
-
+.dataset-step-card { padding-bottom: 16px; }
+.dataset-picker { position: relative; max-width: 560px; }
+.dataset-picker-btn { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+.dataset-picker-panel { margin-top: 10px; border: 1px solid var(--border); border-radius: 16px; background: var(--soft); padding: 12px; display: grid; gap: 10px; }
+.dataset-option { display: flex; gap: 10px; align-items: flex-start; padding: 8px 6px; border-radius: 12px; }
+.dataset-option:hover { background: #eef5ff; }
+.dataset-option-title { font-weight: 700; }
+.dataset-option-desc { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.top-space { margin-top: 10px; }
+.builder-grid { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
+.criteria-card { min-width: 0; }
+.weights-card { min-width: 0; position: sticky; top: 12px; }
+.compact-head { margin-bottom: 10px; }
+.small-toggle { font-size: 14px; gap: 6px; white-space: nowrap; }
+.compact-box { padding: 12px; }
+.compact-chips .chip { padding: 5px 8px; font-size: 11px; }
+.compact-actions { justify-content: flex-start; }
+.weight-row { padding: 8px; }
+.weight-grid { grid-template-columns: minmax(0,1fr) 74px 72px; }
+.weight-grid input, .weight-grid select { padding: 8px 10px; height: 40px; }
+.weight-grid .btn { padding: 8px 10px; height: 40px; }
+.group-head { grid-template-columns: 220px minmax(0,1fr); display: grid; align-items: start; }
+.group-controls { justify-content: flex-end; }
+.group-controls select { min-width: 220px; }
+.criterion-row { padding: 8px; }
+.criterion-grid { grid-template-columns: 56px minmax(130px,.95fr) minmax(170px,1.2fr) 66px minmax(140px,1fr) minmax(120px,.9fr) 76px; }
+.criterion-grid input, .criterion-grid select { padding: 8px 10px; height: 42px; }
+.criterion-grid .btn { padding: 8px 10px; height: 42px; }
+.results-table { min-width: 1400px; }
+@media (max-width: 1380px) { .builder-grid { grid-template-columns: 1.6fr 1fr; } }
 @media (max-width: 1180px) {
-  .toolbar-line .status-pill { margin-left: 0; }
-  .group-controls select { min-width: 0; }
+  .builder-grid { grid-template-columns: 1fr; }
+  .weights-card { position: static; }
+  .group-head { grid-template-columns: 1fr; }
+  .group-controls { justify-content: flex-start; }
 }
+
+@media (max-width: 1180px) { .criterion-grid, .weight-grid { grid-template-columns: 1fr; } }
