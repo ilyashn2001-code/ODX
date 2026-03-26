@@ -2,8 +2,7 @@
 const { datasetsMeta, weightableFields, baseWeights, objects } = window.APP_DATA;
 
 const state = {
-  selectedDatasets: new Set(),
-  datasetsConfirmed: false,
+  selectedDatasets: new Set(["odhObjects", "odhWorks", "okbWorks"]),
   groups: [],
   weights: [],
   customWeightsEnabled: false,
@@ -108,43 +107,13 @@ function createWeight(field = "coveragePercent", value = 25) {
 }
 
 function initState() {
-  state.groups = [];
+  state.groups = [createGroup("odhObjects")];
   state.weights = [
     createWeight("coveragePercent", 35),
     createWeight("repairAge", 25),
     createWeight("estimatedCost", 20),
     createWeight("recommendedVolume", 20)
   ];
-}
-
-function ensureGroupsForSelectedDatasets() {
-  if (!state.selectedDatasets.size) {
-    state.groups = [];
-    return;
-  }
-  if (!state.groups.length) {
-    state.groups = [createGroup(getAvailableDatasets()[0]?.code || "odhObjects")];
-  }
-}
-
-function setDatasetsStageConfirmed(confirmed) {
-  state.datasetsConfirmed = confirmed;
-  document.getElementById("datasetStepCard").classList.toggle("hidden", confirmed);
-  document.getElementById("datasetSummaryCard").classList.toggle("hidden", !confirmed);
-  document.getElementById("builderSection").classList.toggle("hidden", !confirmed);
-  renderSelectedDatasetsTop();
-}
-
-function renderSelectedDatasetsTop() {
-  const top = document.getElementById("selectedDatasetsTop");
-  if (!top) return;
-  top.innerHTML = "";
-  getAvailableDatasets().forEach(item => {
-    const chip = document.createElement("span");
-    chip.className = "chip";
-    chip.textContent = item.label;
-    top.appendChild(chip);
-  });
 }
 
 function renderDatasetSelection() {
@@ -155,7 +124,7 @@ function renderDatasetSelection() {
     const card = document.createElement("label");
     card.className = `dataset-card ${active ? "active" : ""}`;
     card.innerHTML = `
-      <div class="dataset-card-head"><span class="dataset-title">${item.label}</span><input type="checkbox" data-code="${code}" ${active ? "checked" : ""}/></div>
+      <div class="dataset-title"><input type="checkbox" data-code="${code}" ${active ? "checked" : ""}/> ${item.label}</div>
       <div class="dataset-desc">${item.description || ""}</div>
     `;
     container.appendChild(card);
@@ -167,9 +136,7 @@ function renderDatasetSelection() {
       if (event.target.checked) state.selectedDatasets.add(code);
       else state.selectedDatasets.delete(code);
       normalizeGroupsAgainstDatasets();
-      if (!state.selectedDatasets.size) state.datasetsConfirmed = false;
       renderDatasetSelection();
-      setDatasetsStageConfirmed(state.datasetsConfirmed);
       renderGroups();
       renderMirrors(state.analysisResults);
     });
@@ -259,11 +226,6 @@ function renderGroups() {
 
   if (!datasetOptions.length) {
     container.innerHTML = `<div class="helper-text">Сначала выбери хотя бы один набор данных.</div>`;
-    return;
-  }
-
-  if (!state.groups.length) {
-    container.innerHTML = `<div class="helper-text">Нажми «Добавить группу», чтобы начать настройку фильтра.</div>`;
     return;
   }
 
@@ -706,10 +668,6 @@ function runAnalysis(withAnimation = true) {
     alert("Выбери хотя бы один набор данных.");
     return;
   }
-  if (!state.datasetsConfirmed) {
-    alert("Сначала подтверди выбранные наборы кнопкой «Далее».");
-    return;
-  }
   const execute = () => {
     const filtered = applyCriteria(getFilteredDatasetBase());
     const scored = scoreRecords(filtered);
@@ -725,9 +683,8 @@ function runAnalysis(withAnimation = true) {
 }
 
 function resetAll() {
-  state.selectedDatasets = new Set();
+  state.selectedDatasets = new Set(["odhObjects", "odhWorks", "okbWorks"]);
   state.customWeightsEnabled = false;
-  state.datasetsConfirmed = false;
   initState();
   document.getElementById("customWeightsToggle").checked = false;
   document.getElementById("resultsSection").classList.add("hidden");
@@ -736,7 +693,6 @@ function resetAll() {
   renderDatasetSelection();
   renderWeights();
   renderGroups();
-  setDatasetsStageConfirmed(false);
 }
 
 function exportExcel() {
@@ -791,19 +747,6 @@ function attachTopLevelEvents() {
     state.groups.push(createGroup(getAvailableDatasets()[0].code));
     renderGroups();
   });
-  document.getElementById("continueDatasetsBtn").addEventListener("click", () => {
-    if (!state.selectedDatasets.size) {
-      alert("Выбери хотя бы один набор данных.");
-      return;
-    }
-    ensureGroupsForSelectedDatasets();
-    setDatasetsStageConfirmed(true);
-    renderGroups();
-    renderMirrors(state.analysisResults);
-  });
-  document.getElementById("editDatasetsBtn").addEventListener("click", () => {
-    setDatasetsStageConfirmed(false);
-  });
   document.getElementById("runAnalysisBtn").addEventListener("click", () => runAnalysis(true));
   document.getElementById("resetAnalysisBtn").addEventListener("click", resetAll);
   document.getElementById("exportExcelBtn").addEventListener("click", exportExcel);
@@ -814,7 +757,6 @@ function bootstrap() {
   renderDatasetSelection();
   renderWeights();
   renderGroups();
-  setDatasetsStageConfirmed(false);
   attachTopLevelEvents();
 }
 
