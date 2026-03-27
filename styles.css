@@ -698,3 +698,109 @@ input:focus {
 .multi-select{min-height:120px;padding:8px 10px;}
 .criteria-row{align-items:start;}
 .results-table td.numeric-cell,.results-table th.numeric-cell{text-align:right;}
+
+
+.page-shell,
+.card,
+.stack,
+.filters-blocks,
+.results-section,
+#resultsSection,
+.table-wrap,
+.results-table {
+  min-width: 0;
+}
+
+.table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable both-edges;
+}
+
+.results-table {
+  width: max-content;
+  min-width: 1280px;
+  max-width: none;
+}
+
+.results-table th,
+.results-table td {
+  max-width: 280px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.results-table td.wkt-cell {
+  min-width: 280px;
+  max-width: 420px;
+}
+
+.summary-card-note:empty {
+  display: none;
+}
+
+.custom-multiselect {
+  position: relative;
+}
+.custom-multiselect details {
+  position: relative;
+}
+.custom-multiselect summary {
+  list-style: none;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  cursor: pointer;
+  color: var(--text);
+}
+.custom-multiselect summary::-webkit-details-marker {
+  display: none;
+}
+.custom-multiselect details[open] summary {
+  border-color: #a9c9ff;
+  box-shadow: 0 0 0 4px rgba(73, 127, 217, .12);
+}
+.multi-dropdown {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(18, 42, 76, .16);
+  padding: 10px;
+}
+.multi-search {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.multi-options {
+  max-height: 240px;
+  overflow: auto;
+  display: grid;
+  gap: 4px;
+}
+.multi-option,
+.multi-select-all {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: 8px;
+}
+.multi-option:hover,
+.multi-select-all:hover {
+  background: #f7fbff;
+}
+.multi-option input,
+.multi-select-all input {
+  margin-top: 3px;
+}
+.multi-summary-empty {
+  color: var(--muted);
+}
