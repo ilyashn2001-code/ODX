@@ -30,11 +30,11 @@
       <div class="stepper" id="stepper"></div>
     </section>
 
-    <section class="card">
+    <section id="toolSection" class="card">
       <div class="card-head">
         <div>
           <h2>Шаг 1. Выбор инструмента</h2>
-          <p>Сначала выбери, какой сценарий нужно запустить. Для рабочего кейса используй инструмент предиктивного анализа.</p>
+          <p>Сначала выберите сценарий. Для рабочего кейса используйте инструмент предиктивного анализа.</p>
         </div>
       </div>
       <div class="tool-picker">
@@ -74,7 +74,7 @@
             <div>
               <div class="dataset-badge compare">Сравнение</div>
               <h3>Наборы для сравнения</h3>
-              <p>Можно выбрать один или несколько наборов, которые будут отправлены в сервис пересечений.</p>
+              <p>Отображаются все наборы, кроме выбранного в анализируемом блоке.</p>
             </div>
           </div>
           <div id="compareDatasetPicker" class="stack"></div>
@@ -82,27 +82,26 @@
       </div>
 
       <div class="toolbar-line top-space">
-        <button id="goToFiltersBtn" class="btn btn-primary">Перейти к фильтрам</button>
+        <button id="goToFiltersBtn" class="btn btn-primary">Перейти к критериям</button>
       </div>
     </section>
 
     <section id="filtersSection" class="stack hidden">
-      <section class="card">
+      <section id="criteriaCard" class="card">
         <div class="card-head">
           <div>
             <h2>Шаг 3. Критерии отбора данных</h2>
-            <p>Для каждого выбранного набора настраиваются собственные условия. Внутри группы действует связь И или ИЛИ, а сами группы внутри блока объединяются через ИЛИ.</p>
+            <p>Для каждого выбранного набора создаётся своя группа. Выделите строки галочками и объедините их в логическую подгруппу с оператором И, ИЛИ или НЕ.</p>
           </div>
-          <button id="fillScenarioBtn" class="btn btn-secondary">Заполнить тестовый сценарий</button>
         </div>
         <div id="filtersBlocks" class="filters-blocks"></div>
       </section>
 
-      <section class="card collapsible-card">
+      <section id="priorityCard" class="card collapsible-card">
         <div class="card-head">
           <div>
             <h2>Шаг 4. Приоритизация</h2>
-            <p>Необязательный этап. Если не включать ручную настройку, используются базовые коэффициенты.</p>
+            <p>После получения результата блок остаётся доступным: можно менять коэффициенты и сразу перестраивать список результата.</p>
           </div>
           <label class="switch">
             <input id="weightsToggle" type="checkbox">
@@ -113,18 +112,17 @@
         <div id="weightsPanel" class="weights-panel hidden"></div>
       </section>
 
-      <section class="card launch-card">
+      <section id="launchCard" class="card launch-card">
         <div class="card-head">
           <div>
             <h2>Шаг 5. Запуск расчёта</h2>
-            <p>После настройки наборов, фильтров и приоритизации запусти обработку. Карта результатов откроется ниже на всю доступную ширину.</p>
+            <p>После настройки наборов, критериев и приоритизации запустите обработку. В финале останутся карта, реестр и приоритизация.</p>
           </div>
         </div>
         <div class="toolbar-line top-space">
           <button id="runAnalysisBtn" class="btn btn-primary">Запустить расчёт</button>
           <button id="resetBtn" class="btn btn-secondary">Сбросить всё</button>
         </div>
-        <div id="scenarioSummary" class="hidden"></div>
       </section>
     </section>
 
@@ -142,17 +140,21 @@
         <div class="card-head">
           <div>
             <h2>Карта</h2>
-            <p>Выберите строку в таблице, чтобы подсветить объект на карте.</p>
+            <p>Нажмите на строку в таблице, чтобы отцентрировать карту по геометрии объекта.</p>
           </div>
+          <button id="newAnalysisBtn" class="btn btn-secondary">Новый анализ</button>
         </div>
-        <div id="map"></div>
+        <div class="map-wrap">
+          <div id="mapLegend" class="map-legend"></div>
+          <div id="map"></div>
+        </div>
       </section>
 
       <section class="card">
         <div class="card-head">
           <div>
             <h2>Итоговый реестр ОГХ</h2>
-            <p>Результат строится по анализируемому набору. Сравниваемые наборы влияют на расчёт и признаки включения.</p>
+            <p>Результат строится по анализируемому набору. Строка таблицы кликабельна и связана с картой.</p>
           </div>
           <button id="exportBtn" class="btn btn-secondary">Выгрузить в Excel</button>
         </div>
@@ -174,7 +176,6 @@
                 <th>Последний год работ</th>
                 <th>Давность</th>
                 <th>Приоритет</th>
-                <th>Карта</th>
               </tr>
             </thead>
             <tbody id="resultsBody"></tbody>
