@@ -1,2227 +1,3 @@
-window.APP_DATA = {
-  "datasetsMeta": {
-    "odhObjects": {
-      "label": "Объекты ОДХ",
-      "description": "Паспортные и территориальные атрибуты объекта",
-      "attributes": [
-        {
-          "code": "objectId",
-          "label": "Идентификатор",
-          "type": "number"
-        },
-        {
-          "code": "name",
-          "label": "Наименование",
-          "type": "text"
-        },
-        {
-          "code": "district",
-          "label": "Округ",
-          "type": "text"
-        },
-        {
-          "code": "area",
-          "label": "Район",
-          "type": "text"
-        },
-        {
-          "code": "department",
-          "label": "Ведомственный ОИВ",
-          "type": "text"
-        },
-        {
-          "code": "status",
-          "label": "Статус",
-          "type": "text"
-        },
-        {
-          "code": "sourceType",
-          "label": "Тип набора",
-          "type": "text"
-        }
-      ]
-    },
-    "odhWorks": {
-      "label": "Работы на ОДХ",
-      "description": "Работы, планы и нарушение межремонтного срока по дорогам",
-      "attributes": [
-        {
-          "code": "lastWorkYear",
-          "label": "Последний год работ",
-          "type": "number"
-        },
-        {
-          "code": "repairAge",
-          "label": "Давность ремонта",
-          "type": "number"
-        },
-        {
-          "code": "interrepairTerm",
-          "label": "Межремонтный срок",
-          "type": "number"
-        },
-        {
-          "code": "plan2026Roads",
-          "label": "Наличие плана на 2026",
-          "type": "boolean"
-        },
-        {
-          "code": "plan2027Roads",
-          "label": "Наличие плана на 2027",
-          "type": "boolean"
-        },
-        {
-          "code": "roadInterrepairViolation",
-          "label": "Нарушение межремонтного срока",
-          "type": "boolean"
-        }
-      ]
-    },
-    "okbWorks": {
-      "label": "Работы на ОКБ",
-      "description": "Неблагоустроенные участки, покрытие и производные показатели",
-      "attributes": [
-        {
-          "code": "coveragePercent",
-          "label": "Процент покрытия",
-          "type": "number"
-        },
-        {
-          "code": "coveredArea",
-          "label": "Покрытая площадь",
-          "type": "number"
-        },
-        {
-          "code": "uncoveredArea",
-          "label": "Непокрытая площадь",
-          "type": "number"
-        },
-        {
-          "code": "recommendedVolume",
-          "label": "Рекомендуемый объем работ",
-          "type": "number"
-        },
-        {
-          "code": "estimatedCost",
-          "label": "Ориентировочная стоимость",
-          "type": "number"
-        },
-        {
-          "code": "noImprovementUntil25",
-          "label": "Благо не проводилось до 2025",
-          "type": "boolean"
-        },
-        {
-          "code": "reason",
-          "label": "Основание включения",
-          "type": "text"
-        }
-      ]
-    }
-  },
-  "weightableFields": [
-    {
-      "code": "coveragePercent",
-      "label": "Процент покрытия"
-    },
-    {
-      "code": "repairAge",
-      "label": "Давность последнего ремонта"
-    },
-    {
-      "code": "estimatedCost",
-      "label": "Ориентировочная стоимость"
-    },
-    {
-      "code": "recommendedVolume",
-      "label": "Рекомендуемый объем работ"
-    }
-  ],
-  "baseWeights": {
-    "coveragePercent": 35,
-    "repairAge": 25,
-    "estimatedCost": 20,
-    "recommendedVolume": 20
-  },
-  "objects": [
-    {
-      "objectId": 10001339,
-      "oghId": 10001339,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Филипповский переулок",
-      "status": "Действующий",
-      "district": "ЦАО",
-      "area": "Арбат",
-      "department": "Префектура ЦАО",
-      "sourceType": "Объекты ОДХ",
-      "totalArea": 4380,
-      "coveredArea": 520,
-      "uncoveredArea": 3860,
-      "coveragePercent": 11.87,
-      "recommendedVolume": 3860,
-      "estimatedCost": 12352000,
-      "lastWorkYear": 2018,
-      "repairAge": 8,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Пересечение с работами менее 15%; Истек межремонтный срок; Выявлены неблагоустроенные участки (QGIS)",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.595,
-                55.747
-              ],
-              [
-                37.599,
-                55.7471
-              ],
-              [
-                37.5986,
-                55.7448
-              ],
-              [
-                37.5947,
-                55.745
-              ],
-              [
-                37.595,
-                55.747
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.5956,
-                55.7467
-              ],
-              [
-                37.5978,
-                55.7468
-              ],
-              [
-                37.5975,
-                55.7455
-              ],
-              [
-                37.5956,
-                55.7456
-              ],
-              [
-                37.5956,
-                55.7467
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 723345017,
-      "oghId": 723345017,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Проезд от улицы Краснобогатырской до Богатырского 4-го переулка",
-      "status": "Действующий",
-      "district": "ВАО",
-      "area": "Богородское",
-      "department": "Префектура ВАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 7825,
-      "coveredArea": 910,
-      "uncoveredArea": 6915,
-      "coveragePercent": 11.63,
-      "recommendedVolume": 6915,
-      "estimatedCost": 22128000,
-      "lastWorkYear": 2019,
-      "repairAge": 7,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": true,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Низкий процент покрытия; Пересечение с работами менее 15%; Истек межремонтный срок",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.708,
-                55.815
-              ],
-              [
-                37.712,
-                55.8151
-              ],
-              [
-                37.7116,
-                55.8128
-              ],
-              [
-                37.7077,
-                55.813
-              ],
-              [
-                37.708,
-                55.815
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.7086,
-                55.8147
-              ],
-              [
-                37.7108,
-                55.8148
-              ],
-              [
-                37.7105,
-                55.8135
-              ],
-              [
-                37.7086,
-                55.8136
-              ],
-              [
-                37.7086,
-                55.8147
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 119166,
-      "oghId": 119166,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Охотный Ряд улица",
-      "status": "Действующий",
-      "district": "ЦАО",
-      "area": "Тверской",
-      "department": "Префектура ЦАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 9640,
-      "coveredArea": 3480,
-      "uncoveredArea": 6160,
-      "coveragePercent": 36.1,
-      "recommendedVolume": 6160,
-      "estimatedCost": 19712000,
-      "lastWorkYear": 2020,
-      "repairAge": 6,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Истек межремонтный срок; Выявлены неблагоустроенные участки (QGIS); Низкий процент покрытия",
-      "priorityScore": 0.9449,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.617,
-                55.756
-              ],
-              [
-                37.621,
-                55.7561
-              ],
-              [
-                37.6206,
-                55.7538
-              ],
-              [
-                37.6167,
-                55.754
-              ],
-              [
-                37.617,
-                55.756
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.6176,
-                55.7557
-              ],
-              [
-                37.6198,
-                55.7558
-              ],
-              [
-                37.6195,
-                55.7545
-              ],
-              [
-                37.6176,
-                55.7546
-              ],
-              [
-                37.6176,
-                55.7557
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 119167,
-      "oghId": 119167,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Революции площадь",
-      "status": "Действующий",
-      "district": "ЦАО",
-      "area": "Тверской",
-      "department": "Префектура ЦАО",
-      "sourceType": "Работы на ОКБ",
-      "totalArea": 6185,
-      "coveredArea": 0,
-      "uncoveredArea": 6185,
-      "coveragePercent": 0.0,
-      "recommendedVolume": 6185,
-      "estimatedCost": 19792000,
-      "lastWorkYear": null,
-      "repairAge": null,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": true,
-      "reason": "Не проводились работы; Выявлены неблагоустроенные участки (QGIS)",
-      "priorityScore": 0.9211,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.626,
-                55.756
-              ],
-              [
-                37.63,
-                55.7561
-              ],
-              [
-                37.6296,
-                55.7538
-              ],
-              [
-                37.6257,
-                55.754
-              ],
-              [
-                37.626,
-                55.756
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.6266,
-                55.7557
-              ],
-              [
-                37.6288,
-                55.7558
-              ],
-              [
-                37.6285,
-                55.7545
-              ],
-              [
-                37.6266,
-                55.7546
-              ],
-              [
-                37.6266,
-                55.7557
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 10001176,
-      "oghId": 10001176,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Территория прилегающая к Храму Христа Спасителя",
-      "status": "Действующий",
-      "district": "ЦАО",
-      "area": "Хамовники",
-      "department": "Префектура ЦАО",
-      "sourceType": "Объекты ОДХ",
-      "totalArea": 7020,
-      "coveredArea": 1300,
-      "uncoveredArea": 5720,
-      "coveragePercent": 18.52,
-      "recommendedVolume": 5720,
-      "estimatedCost": 18304000,
-      "lastWorkYear": 2017,
-      "repairAge": 9,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Истек межремонтный срок; Выявлены неблагоустроенные участки (QGIS)",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.606,
-                55.744
-              ],
-              [
-                37.61,
-                55.7441
-              ],
-              [
-                37.6096,
-                55.7418
-              ],
-              [
-                37.6057,
-                55.742
-              ],
-              [
-                37.606,
-                55.744
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.6066,
-                55.7437
-              ],
-              [
-                37.6088,
-                55.7438
-              ],
-              [
-                37.6085,
-                55.7425
-              ],
-              [
-                37.6066,
-                55.7426
-              ],
-              [
-                37.6066,
-                55.7437
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 10000573,
-      "oghId": 10000573,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Маяковского пер.",
-      "status": "Действующий",
-      "district": "ЦАО",
-      "area": "Тверской",
-      "department": "Префектура ЦАО",
-      "sourceType": "Объекты ОДХ",
-      "totalArea": 3550,
-      "coveredArea": 200,
-      "uncoveredArea": 3350,
-      "coveragePercent": 5.63,
-      "recommendedVolume": 3350,
-      "estimatedCost": 10720000,
-      "lastWorkYear": 2016,
-      "repairAge": 10,
-      "interrepairTerm": 5,
-      "plan2026Roads": false,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": true,
-      "reason": "Пересечение с работами менее 15%; Не проводились полноценные работы",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.596,
-                55.759
-              ],
-              [
-                37.6,
-                55.7591
-              ],
-              [
-                37.5996,
-                55.7568
-              ],
-              [
-                37.5957,
-                55.757
-              ],
-              [
-                37.596,
-                55.759
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.5966,
-                55.7587
-              ],
-              [
-                37.5988,
-                55.7588
-              ],
-              [
-                37.5985,
-                55.7575
-              ],
-              [
-                37.5966,
-                55.7576
-              ],
-              [
-                37.5966,
-                55.7587
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 10002256,
-      "oghId": 10002256,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Дубнинская улица",
-      "status": "Действующий",
-      "district": "САО",
-      "area": "Восточное Дегунино",
-      "department": "Префектура САО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 11200,
-      "coveredArea": 2500,
-      "uncoveredArea": 8700,
-      "coveragePercent": 22.32,
-      "recommendedVolume": 8700,
-      "estimatedCost": 27840000,
-      "lastWorkYear": 2021,
-      "repairAge": 5,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": true,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Низкий процент покрытия; Выявлены неблагоустроенные участки (QGIS)",
-      "priorityScore": 0.9563,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.565,
-                55.878
-              ],
-              [
-                37.569,
-                55.8781
-              ],
-              [
-                37.5686,
-                55.8758
-              ],
-              [
-                37.5647,
-                55.876
-              ],
-              [
-                37.565,
-                55.878
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.5656,
-                55.8777
-              ],
-              [
-                37.5678,
-                55.8778
-              ],
-              [
-                37.5675,
-                55.8765
-              ],
-              [
-                37.5656,
-                55.8766
-              ],
-              [
-                37.5656,
-                55.8777
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 10003427,
-      "oghId": 10003427,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Новочеркасский бульвар",
-      "status": "Действующий",
-      "district": "ЮВАО",
-      "area": "Марьино",
-      "department": "Префектура ЮВАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 8912.1,
-      "coveredArea": 4125,
-      "uncoveredArea": 4787.1,
-      "coveragePercent": 46.29,
-      "recommendedVolume": 4787.1,
-      "estimatedCost": 15318720.0,
-      "lastWorkYear": 2023,
-      "repairAge": 3,
-      "interrepairTerm": 3,
-      "plan2026Roads": true,
-      "plan2027Roads": true,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Недостаточное покрытие, требуется планирование",
-      "priorityScore": 0.8406,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.748,
-                55.653
-              ],
-              [
-                37.752,
-                55.6531
-              ],
-              [
-                37.7516,
-                55.6508
-              ],
-              [
-                37.7477,
-                55.651
-              ],
-              [
-                37.748,
-                55.653
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.7486,
-                55.6527
-              ],
-              [
-                37.7508,
-                55.6528
-              ],
-              [
-                37.7505,
-                55.6515
-              ],
-              [
-                37.7486,
-                55.6516
-              ],
-              [
-                37.7486,
-                55.6527
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200100,
-      "oghId": 200100,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Антонова-Овсеенко улица",
-      "status": "Действующий",
-      "district": "ЦАО",
-      "area": "Пресненский",
-      "department": "Префектура ЦАО",
-      "sourceType": "Объекты ОДХ",
-      "totalArea": 5494.43,
-      "coveredArea": 1600,
-      "uncoveredArea": 3894.43,
-      "coveragePercent": 29.12,
-      "recommendedVolume": 3894.43,
-      "estimatedCost": 12462176.0,
-      "lastWorkYear": 2023,
-      "repairAge": 3,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": false,
-      "noImprovementUntil25": false,
-      "reason": "Покрытие ниже порога",
-      "priorityScore": 0.9049,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.536,
-                55.757
-              ],
-              [
-                37.54,
-                55.7571
-              ],
-              [
-                37.5396,
-                55.7548
-              ],
-              [
-                37.5357,
-                55.755
-              ],
-              [
-                37.536,
-                55.757
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.5366,
-                55.7567
-              ],
-              [
-                37.5388,
-                55.7568
-              ],
-              [
-                37.5385,
-                55.7555
-              ],
-              [
-                37.5366,
-                55.7556
-              ],
-              [
-                37.5366,
-                55.7567
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200101,
-      "oghId": 200101,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Территория без ремонта",
-      "status": "Действующий",
-      "district": "СВАО",
-      "area": "Бибирево",
-      "department": "Префектура СВАО",
-      "sourceType": "Работы на ОКБ",
-      "totalArea": 6150,
-      "coveredArea": 0,
-      "uncoveredArea": 6150,
-      "coveragePercent": 0.0,
-      "recommendedVolume": 6150,
-      "estimatedCost": 19680000,
-      "lastWorkYear": null,
-      "repairAge": null,
-      "interrepairTerm": 4,
-      "plan2026Roads": false,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": true,
-      "reason": "Неблагоустроенная геометрия без проведенного ремонта",
-      "priorityScore": 0.9213,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.604,
-                55.889
-              ],
-              [
-                37.608,
-                55.8891
-              ],
-              [
-                37.6076,
-                55.8868
-              ],
-              [
-                37.6037,
-                55.887
-              ],
-              [
-                37.604,
-                55.889
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.6046,
-                55.8887
-              ],
-              [
-                37.6068,
-                55.8888
-              ],
-              [
-                37.6065,
-                55.8875
-              ],
-              [
-                37.6046,
-                55.8876
-              ],
-              [
-                37.6046,
-                55.8887
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200102,
-      "oghId": 200102,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Подъезд к жилым корпусам",
-      "status": "Действующий",
-      "district": "ЗАО",
-      "area": "Кунцево",
-      "department": "Префектура ЗАО",
-      "sourceType": "Работы на ОКБ",
-      "totalArea": 4220.8,
-      "coveredArea": 940,
-      "uncoveredArea": 3280.8,
-      "coveragePercent": 22.27,
-      "recommendedVolume": 3280.8,
-      "estimatedCost": 10498560.0,
-      "lastWorkYear": 2022,
-      "repairAge": 4,
-      "interrepairTerm": 3,
-      "plan2026Roads": false,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Работы на дорогах не выполнялись, есть следы ОКБ",
-      "priorityScore": 0.9567,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.395,
-                55.728
-              ],
-              [
-                37.399,
-                55.7281
-              ],
-              [
-                37.3986,
-                55.7258
-              ],
-              [
-                37.3947,
-                55.726
-              ],
-              [
-                37.395,
-                55.728
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.3956,
-                55.7277
-              ],
-              [
-                37.3978,
-                55.7278
-              ],
-              [
-                37.3975,
-                55.7265
-              ],
-              [
-                37.3956,
-                55.7266
-              ],
-              [
-                37.3956,
-                55.7277
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200103,
-      "oghId": 200103,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Проезд у школы",
-      "status": "Действующий",
-      "district": "САО",
-      "area": "Головинский",
-      "department": "Префектура САО",
-      "sourceType": "Объекты ОДХ",
-      "totalArea": 3775.3,
-      "coveredArea": 1480,
-      "uncoveredArea": 2295.3,
-      "coveragePercent": 39.2,
-      "recommendedVolume": 2295.3,
-      "estimatedCost": 7344960.0,
-      "lastWorkYear": 2021,
-      "repairAge": 5,
-      "interrepairTerm": 4,
-      "plan2026Roads": true,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Низкий процент покрытия",
-      "priorityScore": 0.9271,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.494,
-                55.848
-              ],
-              [
-                37.498,
-                55.8481
-              ],
-              [
-                37.4976,
-                55.8458
-              ],
-              [
-                37.4937,
-                55.846
-              ],
-              [
-                37.494,
-                55.848
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.4946,
-                55.8477
-              ],
-              [
-                37.4968,
-                55.8478
-              ],
-              [
-                37.4965,
-                55.8465
-              ],
-              [
-                37.4946,
-                55.8466
-              ],
-              [
-                37.4946,
-                55.8477
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200104,
-      "oghId": 200104,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Внутриквартальный проезд",
-      "status": "Действующий",
-      "district": "ЮАО",
-      "area": "Царицыно",
-      "department": "Префектура ЮАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 5120,
-      "coveredArea": 930,
-      "uncoveredArea": 4190,
-      "coveragePercent": 18.16,
-      "recommendedVolume": 4190,
-      "estimatedCost": 13408000,
-      "lastWorkYear": 2017,
-      "repairAge": 9,
-      "interrepairTerm": 4,
-      "plan2026Roads": false,
-      "plan2027Roads": true,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": true,
-      "reason": "Истек межремонтный срок, покрытие ниже допустимого",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.669,
-                55.622
-              ],
-              [
-                37.673,
-                55.6221
-              ],
-              [
-                37.6726,
-                55.6198
-              ],
-              [
-                37.6687,
-                55.62
-              ],
-              [
-                37.669,
-                55.622
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.6696,
-                55.6217
-              ],
-              [
-                37.6718,
-                55.6218
-              ],
-              [
-                37.6715,
-                55.6205
-              ],
-              [
-                37.6696,
-                55.6206
-              ],
-              [
-                37.6696,
-                55.6217
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200105,
-      "oghId": 200105,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Шмитовский проезд",
-      "status": "Действующий",
-      "district": "ЦАО",
-      "area": "Пресненский",
-      "department": "Префектура ЦАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 7340,
-      "coveredArea": 1680,
-      "uncoveredArea": 5660,
-      "coveragePercent": 22.89,
-      "recommendedVolume": 5660,
-      "estimatedCost": 18112000,
-      "lastWorkYear": 2019,
-      "repairAge": 7,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Истек межремонтный срок; Пересечение менее 15%",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.541,
-                55.756
-              ],
-              [
-                37.545,
-                55.7561
-              ],
-              [
-                37.5446,
-                55.7538
-              ],
-              [
-                37.5407,
-                55.754
-              ],
-              [
-                37.541,
-                55.756
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.5416,
-                55.7557
-              ],
-              [
-                37.5438,
-                55.7558
-              ],
-              [
-                37.5435,
-                55.7545
-              ],
-              [
-                37.5416,
-                55.7546
-              ],
-              [
-                37.5416,
-                55.7557
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200106,
-      "oghId": 200106,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Садовая-Кудринская улица",
-      "status": "Действующий",
-      "district": "ЦАО",
-      "area": "Пресненский",
-      "department": "Префектура ЦАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 6840,
-      "coveredArea": 2210,
-      "uncoveredArea": 4630,
-      "coveragePercent": 32.31,
-      "recommendedVolume": 4630,
-      "estimatedCost": 14816000,
-      "lastWorkYear": 2020,
-      "repairAge": 6,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Низкий процент покрытия",
-      "priorityScore": 0.9653,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.585,
-                55.764
-              ],
-              [
-                37.589,
-                55.7641
-              ],
-              [
-                37.5886,
-                55.7618
-              ],
-              [
-                37.5847,
-                55.762
-              ],
-              [
-                37.585,
-                55.764
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.5856,
-                55.7637
-              ],
-              [
-                37.5878,
-                55.7638
-              ],
-              [
-                37.5875,
-                55.7625
-              ],
-              [
-                37.5856,
-                55.7626
-              ],
-              [
-                37.5856,
-                55.7637
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200107,
-      "oghId": 200107,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Проспект Мира дублер",
-      "status": "Действующий",
-      "district": "СВАО",
-      "area": "Останкинский",
-      "department": "Префектура СВАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 9440,
-      "coveredArea": 2460,
-      "uncoveredArea": 6980,
-      "coveragePercent": 26.06,
-      "recommendedVolume": 6980,
-      "estimatedCost": 22336000,
-      "lastWorkYear": 2018,
-      "repairAge": 8,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": true,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Истек межремонтный срок; QGIS",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.636,
-                55.821
-              ],
-              [
-                37.64,
-                55.8211
-              ],
-              [
-                37.6396,
-                55.8188
-              ],
-              [
-                37.6357,
-                55.819
-              ],
-              [
-                37.636,
-                55.821
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.6366,
-                55.8207
-              ],
-              [
-                37.6388,
-                55.8208
-              ],
-              [
-                37.6385,
-                55.8195
-              ],
-              [
-                37.6366,
-                55.8196
-              ],
-              [
-                37.6366,
-                55.8207
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200108,
-      "oghId": 200108,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Ленинградский проспект дублер",
-      "status": "Действующий",
-      "district": "САО",
-      "area": "Аэропорт",
-      "department": "Префектура САО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 12380,
-      "coveredArea": 1808,
-      "uncoveredArea": 10572,
-      "coveragePercent": 14.6,
-      "recommendedVolume": 10572,
-      "estimatedCost": 33830400,
-      "lastWorkYear": 2019,
-      "repairAge": 7,
-      "interrepairTerm": 6,
-      "plan2026Roads": true,
-      "plan2027Roads": true,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Пересечение с работами менее 15%; Истек межремонтный срок",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.545,
-                55.799
-              ],
-              [
-                37.549,
-                55.7991
-              ],
-              [
-                37.5486,
-                55.7968
-              ],
-              [
-                37.5447,
-                55.797
-              ],
-              [
-                37.545,
-                55.799
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.5456,
-                55.7987
-              ],
-              [
-                37.5478,
-                55.7988
-              ],
-              [
-                37.5475,
-                55.7975
-              ],
-              [
-                37.5456,
-                55.7976
-              ],
-              [
-                37.5456,
-                55.7987
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200109,
-      "oghId": 200109,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Волгоградский проспект боковой проезд",
-      "status": "Действующий",
-      "district": "ЮВАО",
-      "area": "Текстильщики",
-      "department": "Префектура ЮВАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 8520,
-      "coveredArea": 1880,
-      "uncoveredArea": 6640,
-      "coveragePercent": 22.07,
-      "recommendedVolume": 6640,
-      "estimatedCost": 21248000,
-      "lastWorkYear": 2020,
-      "repairAge": 6,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": true,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Низкий процент покрытия",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.747,
-                55.708
-              ],
-              [
-                37.751,
-                55.7081
-              ],
-              [
-                37.7506,
-                55.7058
-              ],
-              [
-                37.7467,
-                55.706
-              ],
-              [
-                37.747,
-                55.708
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.7476,
-                55.7077
-              ],
-              [
-                37.7498,
-                55.7078
-              ],
-              [
-                37.7495,
-                55.7065
-              ],
-              [
-                37.7476,
-                55.7066
-              ],
-              [
-                37.7476,
-                55.7077
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200110,
-      "oghId": 200110,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Профсоюзная улица, местный проезд",
-      "status": "Действующий",
-      "district": "ЮЗАО",
-      "area": "Черёмушки",
-      "department": "Префектура ЮЗАО",
-      "sourceType": "Объекты ОДХ",
-      "totalArea": 4860,
-      "coveredArea": 1120,
-      "uncoveredArea": 3740,
-      "coveragePercent": 23.05,
-      "recommendedVolume": 3740,
-      "estimatedCost": 11968000,
-      "lastWorkYear": 2018,
-      "repairAge": 8,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Истек межремонтный срок; QGIS",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.561,
-                55.674
-              ],
-              [
-                37.565,
-                55.6741
-              ],
-              [
-                37.5646,
-                55.6718
-              ],
-              [
-                37.5607,
-                55.672
-              ],
-              [
-                37.561,
-                55.674
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.5616,
-                55.6737
-              ],
-              [
-                37.5638,
-                55.6738
-              ],
-              [
-                37.5635,
-                55.6725
-              ],
-              [
-                37.5616,
-                55.6726
-              ],
-              [
-                37.5616,
-                55.6737
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200111,
-      "oghId": 200111,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Каширское шоссе, карман ОТ",
-      "status": "Действующий",
-      "district": "ЮАО",
-      "area": "Нагатино-Садовники",
-      "department": "Префектура ЮАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 5930,
-      "coveredArea": 980,
-      "uncoveredArea": 4950,
-      "coveragePercent": 16.53,
-      "recommendedVolume": 4950,
-      "estimatedCost": 15840000,
-      "lastWorkYear": 2021,
-      "repairAge": 5,
-      "interrepairTerm": 4,
-      "plan2026Roads": true,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Низкий процент покрытия; Пересечение менее 15%",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.646,
-                55.666
-              ],
-              [
-                37.65,
-                55.6661
-              ],
-              [
-                37.6496,
-                55.6638
-              ],
-              [
-                37.6457,
-                55.664
-              ],
-              [
-                37.646,
-                55.666
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.6466,
-                55.6657
-              ],
-              [
-                37.6488,
-                55.6658
-              ],
-              [
-                37.6485,
-                55.6645
-              ],
-              [
-                37.6466,
-                55.6646
-              ],
-              [
-                37.6466,
-                55.6657
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200112,
-      "oghId": 200112,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Севастопольский проспект дублер",
-      "status": "Действующий",
-      "district": "ЮЗАО",
-      "area": "Котловка",
-      "department": "Префектура ЮЗАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 7710,
-      "coveredArea": 2030,
-      "uncoveredArea": 5680,
-      "coveragePercent": 26.33,
-      "recommendedVolume": 5680,
-      "estimatedCost": 18176000,
-      "lastWorkYear": 2019,
-      "repairAge": 7,
-      "interrepairTerm": 5,
-      "plan2026Roads": true,
-      "plan2027Roads": true,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Истек межремонтный срок",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.594,
-                55.686
-              ],
-              [
-                37.598,
-                55.6861
-              ],
-              [
-                37.5976,
-                55.6838
-              ],
-              [
-                37.5937,
-                55.684
-              ],
-              [
-                37.594,
-                55.686
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.5946,
-                55.6857
-              ],
-              [
-                37.5968,
-                55.6858
-              ],
-              [
-                37.5965,
-                55.6845
-              ],
-              [
-                37.5946,
-                55.6846
-              ],
-              [
-                37.5946,
-                55.6857
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200113,
-      "oghId": 200113,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Алтуфьевское шоссе, боковой проезд",
-      "status": "Действующий",
-      "district": "СВАО",
-      "area": "Отрадное",
-      "department": "Префектура СВАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 8120,
-      "coveredArea": 1520,
-      "uncoveredArea": 6600,
-      "coveragePercent": 18.72,
-      "recommendedVolume": 6600,
-      "estimatedCost": 21120000,
-      "lastWorkYear": 2017,
-      "repairAge": 9,
-      "interrepairTerm": 5,
-      "plan2026Roads": false,
-      "plan2027Roads": true,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": false,
-      "reason": "Истек межремонтный срок; Низкий процент покрытия",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.586,
-                55.865
-              ],
-              [
-                37.59,
-                55.8651
-              ],
-              [
-                37.5896,
-                55.8628
-              ],
-              [
-                37.5857,
-                55.863
-              ],
-              [
-                37.586,
-                55.865
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.5866,
-                55.8647
-              ],
-              [
-                37.5888,
-                55.8648
-              ],
-              [
-                37.5885,
-                55.8635
-              ],
-              [
-                37.5866,
-                55.8636
-              ],
-              [
-                37.5866,
-                55.8647
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200114,
-      "oghId": 200114,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Митинский проезд",
-      "status": "Действующий",
-      "district": "СЗАО",
-      "area": "Митино",
-      "department": "Префектура СЗАО",
-      "sourceType": "Объекты ОДХ",
-      "totalArea": 4540,
-      "coveredArea": 680,
-      "uncoveredArea": 3860,
-      "coveragePercent": 14.98,
-      "recommendedVolume": 3860,
-      "estimatedCost": 12352000,
-      "lastWorkYear": 2016,
-      "repairAge": 10,
-      "interrepairTerm": 5,
-      "plan2026Roads": false,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": true,
-      "reason": "Не проводились полноценные работы",
-      "priorityScore": 0.99,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.361,
-                55.846
-              ],
-              [
-                37.365,
-                55.8461
-              ],
-              [
-                37.3646,
-                55.8438
-              ],
-              [
-                37.3607,
-                55.844
-              ],
-              [
-                37.361,
-                55.846
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.3616,
-                55.8457
-              ],
-              [
-                37.3638,
-                55.8458
-              ],
-              [
-                37.3635,
-                55.8445
-              ],
-              [
-                37.3616,
-                55.8446
-              ],
-              [
-                37.3616,
-                55.8457
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200115,
-      "oghId": 200115,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Рязанский проспект дублер",
-      "status": "Действующий",
-      "district": "ЮВАО",
-      "area": "Рязанский",
-      "department": "Префектура ЮВАО",
-      "sourceType": "Работы на ОДХ",
-      "totalArea": 10240,
-      "coveredArea": 2630,
-      "uncoveredArea": 7610,
-      "coveragePercent": 25.68,
-      "recommendedVolume": 7610,
-      "estimatedCost": 24352000,
-      "lastWorkYear": 2022,
-      "repairAge": 4,
-      "interrepairTerm": 4,
-      "plan2026Roads": true,
-      "plan2027Roads": true,
-      "roadInterrepairViolation": false,
-      "noImprovementUntil25": false,
-      "reason": "Низкий процент покрытия",
-      "priorityScore": 0.9246,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.78,
-                55.721
-              ],
-              [
-                37.784,
-                55.7211
-              ],
-              [
-                37.7836,
-                55.7188
-              ],
-              [
-                37.7797,
-                55.719
-              ],
-              [
-                37.78,
-                55.721
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.7806,
-                55.7207
-              ],
-              [
-                37.7828,
-                55.7208
-              ],
-              [
-                37.7825,
-                55.7195
-              ],
-              [
-                37.7806,
-                55.7196
-              ],
-              [
-                37.7806,
-                55.7207
-              ]
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "objectId": 200116,
-      "oghId": 200116,
-      "objectType": "Объект дорожного хозяйства",
-      "name": "Свободный проспект, местный проезд",
-      "status": "Действующий",
-      "district": "ВАО",
-      "area": "Ивановское",
-      "department": "Префектура ВАО",
-      "sourceType": "Работы на ОКБ",
-      "totalArea": 4980,
-      "coveredArea": 620,
-      "uncoveredArea": 4360,
-      "coveragePercent": 12.45,
-      "recommendedVolume": 4360,
-      "estimatedCost": 13952000,
-      "lastWorkYear": null,
-      "repairAge": null,
-      "interrepairTerm": 4,
-      "plan2026Roads": true,
-      "plan2027Roads": false,
-      "roadInterrepairViolation": true,
-      "noImprovementUntil25": true,
-      "reason": "Не проводились работы; Выявлены неблагоустроенные участки (QGIS)",
-      "priorityScore": 0.8861,
-      "priorityLevel": "high",
-      "geometry": {
-        "odh": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.824,
-                55.758
-              ],
-              [
-                37.828,
-                55.7581
-              ],
-              [
-                37.8276,
-                55.7558
-              ],
-              [
-                37.8237,
-                55.756
-              ],
-              [
-                37.824,
-                55.758
-              ]
-            ]
-          ]
-        },
-        "qgis": {
-          "type": "Polygon",
-          "coordinates": [
-            [
-              [
-                37.8246,
-                55.7577
-              ],
-              [
-                37.8268,
-                55.7578
-              ],
-              [
-                37.8265,
-                55.7565
-              ],
-              [
-                37.8246,
-                55.7566
-              ],
-              [
-                37.8246,
-                55.7577
-              ]
-            ]
-          ]
-        }
-      }
-    }
-  ]
-};
-
 
 (() => {
   const APP = window.APP_DATA || {};
@@ -2231,42 +7,28 @@ window.APP_DATA = {
     {
       code: 'predictive',
       title: 'Инструмент предиктивного анализа',
-      description: 'Рабочий сценарий для отбора ОДХ, настройки наборов сравнения, фильтрации и формирования итогового реестра неблагоустроенных объектов.'
+      description: 'Рабочий сценарий для отбора ОГХ, настройки наборов сравнения, фильтрации и формирования итогового реестра неблагоустроенных объектов.'
     },
     {
       code: 'coverage',
       title: 'Инструмент оценки покрытия территорий',
-      description: 'Резервный сценарий для будущего расчёта покрытия и анализа благоустроенности по территориальным зонам.'
+      description: 'Резервный сценарий для будущего расчёта покрытия и анализа благоустройства по территориальным зонам.'
     },
     {
       code: 'compare',
       title: 'Инструмент сценарного сопоставления наборов',
-      description: 'Резервный сценарий для будущего сопоставления и сравнения нескольких тематических наборов данных.'
+      description: 'Резервный сценарий для будущего сопоставления нескольких тематических наборов данных.'
     }
   ];
 
   const DATASETS = {
-    ogh: {
-      code: 'ogh',
-      title: 'Набор ОДХ',
-      description: 'Основной анализируемый набор дорожных объектов.',
-      short: 'ОДХ'
-    },
-    sok: {
-      code: 'sok',
-      title: 'Набор благоустройства (СОК)',
-      description: 'Сравниваемый набор работ и благоустройства из СОК.',
-      short: 'СОК'
-    },
-    krr: {
-      code: 'krr',
-      title: 'Набор благоустройства (КРР)',
-      description: 'Сравниваемый набор работ и благоустройства из КРР.',
-      short: 'КРР'
-    }
+    ogh: { code: 'ogh', title: 'Набор ОГХ', description: 'Основной анализируемый набор дорожных объектов.', short: 'ОГХ' },
+    sok: { code: 'sok', title: 'Набор благоустройства (СОК)', description: 'Сравниваемый набор работ и благоустройства из СОК.', short: 'СОК' },
+    krr: { code: 'krr', title: 'Набор благоустройства (КРР)', description: 'Сравниваемый набор работ и благоустройства из КРР.', short: 'КРР' }
   };
 
   const DATASET_ORDER = ['ogh', 'sok', 'krr'];
+  const steps = ['Инструмент', 'Наборы', 'Фильтры', 'Приоритизация', 'Результат'];
 
   const baseWeights = APP.baseWeights || {
     coveragePercent: 35,
@@ -2277,42 +39,40 @@ window.APP_DATA = {
 
   const weightLabels = {
     coveragePercent: 'Процент покрытия',
-    repairAge: 'Давность ремонта',
+    repairAge: 'Давность последнего ремонта',
     estimatedCost: 'Ориентировочная стоимость',
-    recommendedVolume: 'Рекомендуемый объём'
+    recommendedVolume: 'Рекомендуемый объём работ'
   };
-
-  function uniqueValues(key) {
-    return [...new Set((APP.objects || []).map((item) => item[key]).filter(Boolean))].sort();
-  }
 
   const FILTER_FIELDS = {
     ogh: [
-      { code: 'kind', label: 'Вид', type: 'enum', options: ['ОДХ', 'ОКБ'] },
+      { code: 'kind', label: 'Вид', type: 'enum', options: ['ОДХ'] },
       { code: 'passportEndDate', label: 'Дата окончания паспорта', type: 'date' },
       { code: 'name', label: 'Наименование', type: 'text' },
       { code: 'district', label: 'Округ', type: 'enum', options: uniqueValues('district') },
       { code: 'area', label: 'Район', type: 'enum', options: uniqueValues('area') },
-      { code: 'department', label: 'ОИВ', type: 'enum', options: uniqueValues('department') },
-      { code: 'lastWorkYear', label: 'Последний год работ', type: 'number' }
+      { code: 'status', label: 'Статус', type: 'enum', options: uniqueValues('status') },
+      { code: 'lastWorkYear', label: 'Последний год работ', type: 'number' },
+      { code: 'repairAge', label: 'Давность ремонта', type: 'number' },
+      { code: 'coveragePercent', label: 'Процент покрытия', type: 'number' }
     ],
     sok: [
       { code: 'compareObjectType', label: 'Тип объекта', type: 'enum', options: ['ОДХ', 'ОКБ'] },
       { code: 'workYear', label: 'Год проведения работ', type: 'number' },
       { code: 'workType', label: 'Вид работ', type: 'enum', options: ['Асфальт 1', 'Асфальт 2', 'Асфальт 3', 'Озеленение', 'Бортовой камень'] },
       { code: 'district', label: 'Округ', type: 'enum', options: uniqueValues('district') },
-      { code: 'area', label: 'Район', type: 'enum', options: uniqueValues('area') }
+      { code: 'area', label: 'Район', type: 'enum', options: uniqueValues('area') },
+      { code: 'sourceName', label: 'Источник / объект', type: 'text' }
     ],
     krr: [
       { code: 'compareObjectType', label: 'Тип объекта', type: 'enum', options: ['ОДХ', 'ОКБ'] },
       { code: 'workYear', label: 'Год проведения работ', type: 'number' },
       { code: 'workType', label: 'Вид работ', type: 'enum', options: ['Асфальт 1', 'Асфальт 2', 'Асфальт 3', 'Озеленение', 'Бортовой камень'] },
       { code: 'district', label: 'Округ', type: 'enum', options: uniqueValues('district') },
-      { code: 'area', label: 'Район', type: 'enum', options: uniqueValues('area') }
+      { code: 'area', label: 'Район', type: 'enum', options: uniqueValues('area') },
+      { code: 'sourceName', label: 'Источник / объект', type: 'text' }
     ]
   };
-
-  const steps = ['Инструмент', 'Наборы', 'Фильтры', 'Приоритизация', 'Результат'];
 
   const state = {
     tool: 'predictive',
@@ -2326,7 +86,8 @@ window.APP_DATA = {
     resultMeta: null,
     currentStep: 1,
     map: null,
-    mapLayer: null
+    mapLayer: null,
+    selectedObjectId: null
   };
 
   const mainRecords = buildMainRecords(APP.objects || []);
@@ -2334,6 +95,10 @@ window.APP_DATA = {
     sok: buildCompareRecords(mainRecords, 'sok'),
     krr: buildCompareRecords(mainRecords, 'krr')
   };
+
+  function uniqueValues(key) {
+    return [...new Set((APP.objects || []).map((item) => item[key]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'ru'));
+  }
 
   function buildMainRecords(objects) {
     return objects.map((item, index) => {
@@ -2351,13 +116,12 @@ window.APP_DATA = {
 
   function buildCompareRecords(objects, datasetCode) {
     return objects.flatMap((item, index) => {
-      const setup = datasetCode === 'sok'
-        ? { base: 2016, span: 10 }
-        : { base: 2019, span: 7 };
+      const setup = datasetCode === 'sok' ? { base: 2016, span: 10 } : { base: 2019, span: 7 };
       const records = [];
       const types = ['Асфальт 1', 'Асфальт 2', 'Асфальт 3', 'Озеленение', 'Бортовой камень'];
       const firstType = index % 2 === 0 ? 'ОДХ' : 'ОКБ';
       const secondType = firstType === 'ОДХ' ? 'ОКБ' : 'ОДХ';
+
       records.push({
         compareId: `${datasetCode}-${item.objectId}-a`,
         linkObjectId: item.objectId,
@@ -2372,6 +136,7 @@ window.APP_DATA = {
         geometry: item.geometry,
         sourceName: item.name
       });
+
       records.push({
         compareId: `${datasetCode}-${item.objectId}-b`,
         linkObjectId: item.objectId,
@@ -2386,6 +151,7 @@ window.APP_DATA = {
         geometry: item.geometry,
         sourceName: item.name
       });
+
       return records;
     });
   }
@@ -2422,7 +188,8 @@ window.APP_DATA = {
       field: field?.code || 'name',
       operator: defaultOperator(field?.type || 'text'),
       value1: '',
-      value2: ''
+      value2: '',
+      clusterId: null
     };
   }
 
@@ -2430,17 +197,10 @@ window.APP_DATA = {
     return {
       id: cryptoId(),
       datasetCode,
-      enabled: true,
       allData: false,
-      rows: [createRow(datasetCode)]
-    };
-  }
-
-  function resetFilters() {
-    state.filters = {
-      ogh: createFilterGroup('ogh'),
-      sok: createFilterGroup('sok'),
-      krr: createFilterGroup('krr')
+      rows: [createRow(datasetCode)],
+      selectedRowIds: [],
+      clusterModes: {}
     };
   }
 
@@ -2457,15 +217,32 @@ window.APP_DATA = {
     };
   }
 
+  function resetFilters() {
+    state.filters = {
+      ogh: createFilterGroup('ogh'),
+      sok: createFilterGroup('sok'),
+      krr: createFilterGroup('krr')
+    };
+  }
+
+  function activeFilterDatasets() {
+    return [state.mainDataset, ...state.compareDatasets].filter(Boolean);
+  }
+
+  function availableCompareDatasets() {
+    return DATASET_ORDER.filter((code) => code !== state.mainDataset);
+  }
+
   function init() {
     resetFilters();
+    state.customPriorityRules = [createPriorityRule('ogh')];
     renderStepper();
     renderToolOptions();
     renderDatasetPickers();
     renderBaseWeights();
     renderWeightsPanel();
     renderFilters();
-    renderScenarioSummary();
+    renderMapLegend();
     bindEvents();
     updateToolHeader();
   }
@@ -2474,40 +251,44 @@ window.APP_DATA = {
     $('toolSelect').addEventListener('change', (e) => {
       state.tool = e.target.value;
       updateToolHeader();
-      renderScenarioSummary();
     });
 
     $('goToDatasetsBtn').addEventListener('click', () => {
+      $('toolSection').classList.add('is-collapsed');
       $('datasetsSection').classList.remove('hidden');
       state.currentStep = 2;
       renderStepper();
-      window.scrollTo({ top: $('datasetsSection').offsetTop - 20, behavior: 'smooth' });
+      scrollToNode($('datasetsSection'));
     });
 
     $('goToFiltersBtn').addEventListener('click', () => {
-      if (!state.mainDataset) return alert('Выберите анализируемый набор.');
-      if (!state.compareDatasets.length) return alert('Выберите хотя бы один набор для сравнения.');
+      if (!state.mainDataset) {
+        alert('Выберите анализируемый набор.');
+        return;
+      }
+      if (!state.compareDatasets.length) {
+        alert('Выберите хотя бы один набор для сравнения.');
+        return;
+      }
+      $('datasetsSection').classList.add('is-collapsed');
       $('filtersSection').classList.remove('hidden');
       state.currentStep = 3;
       renderStepper();
       renderFilters();
-      renderScenarioSummary();
-      window.scrollTo({ top: $('filtersSection').offsetTop - 20, behavior: 'smooth' });
+      renderWeightsPanel();
+      scrollToNode($('filtersSection'));
     });
-
-    $('fillScenarioBtn').addEventListener('click', applyTestScenario);
 
     $('weightsToggle').addEventListener('change', (e) => {
       state.useCustomWeights = e.target.checked;
       $('weightsPanel').classList.toggle('hidden', !state.useCustomWeights);
-      state.currentStep = state.useCustomWeights ? 4 : 3;
-      renderStepper();
       renderWeightsPanel();
-      renderScenarioSummary();
+      if (state.results.length) recomputeResults();
     });
 
     $('runAnalysisBtn').addEventListener('click', runAnalysis);
     $('resetBtn').addEventListener('click', resetAll);
+    $('newAnalysisBtn').addEventListener('click', resetAll);
     $('exportBtn').addEventListener('click', exportExcel);
   }
 
@@ -2521,18 +302,13 @@ window.APP_DATA = {
 
   function renderToolOptions() {
     $('toolSelect').innerHTML = TOOL_OPTIONS.map((tool) => `<option value="${tool.code}" ${tool.code === state.tool ? 'selected' : ''}>${tool.title}</option>`).join('');
-    const active = TOOL_OPTIONS.find((tool) => tool.code === state.tool);
-    $('toolDescription').textContent = active?.description || '';
+    updateToolHeader();
   }
 
   function updateToolHeader() {
     const active = TOOL_OPTIONS.find((tool) => tool.code === state.tool);
     $('activeToolBadge').textContent = active?.title || 'Не выбран';
     $('toolDescription').textContent = active?.description || '';
-  }
-
-  function availableCompareDatasets() {
-    return DATASET_ORDER.filter((code) => code !== state.mainDataset);
   }
 
   function renderDatasetPickers() {
@@ -2542,11 +318,14 @@ window.APP_DATA = {
     $('mainDatasetPicker').querySelectorAll('input[name="mainDataset"]').forEach((input) => {
       input.addEventListener('change', (e) => {
         state.mainDataset = e.target.value;
-        state.compareDatasets = availableCompareDatasets();
+        state.compareDatasets = availableCompareDatasets().filter((code) => state.compareDatasets.includes(code));
+        if (!state.compareDatasets.length) state.compareDatasets = availableCompareDatasets();
+        if (!activeFilterDatasets().includes(state.customPriorityRules[0]?.datasetCode)) {
+          state.customPriorityRules = [createPriorityRule(state.mainDataset)];
+        }
         renderDatasetPickers();
         renderFilters();
         renderWeightsPanel();
-        renderScenarioSummary();
       });
     });
 
@@ -2559,7 +338,6 @@ window.APP_DATA = {
         }
         renderFilters();
         renderWeightsPanel();
-        renderScenarioSummary();
       });
     });
   }
@@ -2580,13 +358,8 @@ window.APP_DATA = {
     $('baseWeightsChips').innerHTML = Object.entries(baseWeights).map(([key, value]) => `<span class="chip">${weightLabels[key]} — ${value}%</span>`).join('');
   }
 
-  function activeFilterDatasets() {
-    return [state.mainDataset, ...state.compareDatasets].filter(Boolean);
-  }
-
   function renderFilters() {
-    const blocks = activeFilterDatasets().map((datasetCode) => renderFilterBlock(datasetCode)).join('');
-    $('filtersBlocks').innerHTML = blocks;
+    $('filtersBlocks').innerHTML = activeFilterDatasets().map((datasetCode) => renderFilterBlock(datasetCode)).join('');
     bindFilterEvents();
   }
 
@@ -2605,26 +378,66 @@ window.APP_DATA = {
             <p>${dataset.description}</p>
           </div>
         </div>
-        <div class="group-box highlighted" data-group-id="${group.id}" data-dataset-code="${datasetCode}">
+        <div class="group-box highlighted">
           <div class="group-head single-group-head">
             <div>
               <div class="group-title">Группа условий для набора</div>
-              <div class="group-logic-note">Внутри одной группы можно смешивать связи <strong>И</strong> и <strong>ИЛИ</strong> между строками.</div>
+              <div class="group-logic-note">Группа не удаляется. Можно редактировать строки, выделять их галочками и объединять в логические подгруппы.</div>
             </div>
             <label class="take-all-toggle">
               <input type="checkbox" data-all-data-toggle="${datasetCode}" ${group.allData ? 'checked' : ''}>
               <span>Взять в анализ все данные без фильтрации</span>
             </label>
           </div>
-          <div class="rows ${group.allData ? 'disabled-area' : ''}">
-            ${group.rows.map((row, index) => renderRow(datasetCode, row, index)).join('')}
-          </div>
-          <div class="group-footer ${group.allData ? 'disabled-area' : ''}">
-            <div class="group-logic-note">Группу удалить нельзя — редактируется только её содержимое.</div>
+
+          <div class="filters-toolbar ${group.allData ? 'disabled-area' : ''}">
             <button class="btn btn-secondary btn-small" data-add-row="${datasetCode}" ${group.allData ? 'disabled' : ''}>Добавить условие</button>
+            <button class="btn btn-secondary btn-small" data-group-selected="${datasetCode}" ${group.allData ? 'disabled' : ''}>Группировать выделенные</button>
+            <button class="btn btn-secondary btn-small" data-ungroup-selected="${datasetCode}" ${group.allData ? 'disabled' : ''}>Разгруппировать</button>
+            <span class="group-toolbar-note">Выдели две или больше строки и объедини их в подгруппу.</span>
+          </div>
+
+          <div class="rows ${group.allData ? 'disabled-area' : ''}">
+            ${renderRows(datasetCode, group)}
+          </div>
+
+          <div class="group-footer ${group.allData ? 'disabled-area' : ''}">
+            <div class="group-logic-note">Условия внутри подгруппы можно связать через И, ИЛИ или НЕ. НЕ инвертирует результат выбранной подгруппы.</div>
           </div>
         </div>
       </section>
+    `;
+  }
+
+  function renderRows(datasetCode, group) {
+    const rows = group.rows;
+    const html = [];
+    rows.forEach((row, index) => {
+      const prev = rows[index - 1];
+      const startsCluster = row.clusterId && (!prev || prev.clusterId !== row.clusterId);
+      if (startsCluster) html.push(renderClusterHeader(datasetCode, row));
+      html.push(renderRow(datasetCode, row, index));
+    });
+    return html.join('');
+  }
+
+  function renderClusterHeader(datasetCode, row) {
+    const mode = state.filters[datasetCode].clusterModes[row.clusterId] || 'OR';
+    return `
+      <div class="grouped-strip ${mode === 'NOT' ? 'negated' : ''}">
+        <div>
+          <div class="grouped-strip-title">Подгруппа</div>
+          <div class="dataset-option-description">Выделенные строки объединены в отдельное логическое условие.</div>
+        </div>
+        <label class="field">
+          <span class="field-label">Логика подгруппы</span>
+          <select data-cluster-mode="${row.clusterId}" data-dataset-code="${datasetCode}">
+            <option value="OR" ${mode === 'OR' ? 'selected' : ''}>ИЛИ</option>
+            <option value="AND" ${mode === 'AND' ? 'selected' : ''}>И</option>
+            <option value="NOT" ${mode === 'NOT' ? 'selected' : ''}>НЕ</option>
+          </select>
+        </label>
+      </div>
     `;
   }
 
@@ -2634,17 +447,23 @@ window.APP_DATA = {
     const operators = operatorsFor(meta.type);
     const isBetween = row.operator === 'between';
     const placeholder = meta.type === 'text' ? 'Введите значение' : meta.type === 'number' ? 'Например, 2025' : '';
+    const group = state.filters[datasetCode];
+    const selected = group.selectedRowIds.includes(row.id);
+    const unitStart = isUnitStart(group.rows, index);
+    const classes = [
+      'row-filter',
+      isBetween ? '' : 'single-value',
+      selected ? 'row-selected' : '',
+      row.clusterId ? 'row-in-cluster' : '',
+      unitStart ? 'row-highlighted' : ''
+    ].filter(Boolean).join(' ');
+
     return `
-      <div class="row-filter ${isBetween ? '' : 'single-value'}" data-row-id="${row.id}">
-        ${index === 0 ? `<div class="logic-anchor">Старт</div>` : `
-          <label class="field logic-field">
-            <span class="field-label">Связь</span>
-            <select data-row-join="${row.id}" data-dataset-code="${datasetCode}">
-              <option value="AND" ${row.join === 'AND' ? 'selected' : ''}>И</option>
-              <option value="OR" ${row.join === 'OR' ? 'selected' : ''}>ИЛИ</option>
-            </select>
-          </label>
-        `}
+      <div class="${classes}" data-row-id="${row.id}">
+        <div class="row-select-box">
+          <input type="checkbox" data-row-select="${row.id}" data-dataset-code="${datasetCode}" ${selected ? 'checked' : ''}>
+        </div>
+        ${unitStart ? renderJoinControl(datasetCode, row, index) : `<div class="logic-anchor">↳</div>`}
         <label class="field">
           <span class="field-label">Атрибут</span>
           <select data-row-field="${row.id}" data-dataset-code="${datasetCode}">
@@ -2671,8 +490,21 @@ window.APP_DATA = {
             ${renderValueControl(datasetCode, row, meta, 'value1', placeholder)}
           </label>
         `}
-        <button class="btn btn-secondary btn-small btn-danger" data-remove-row="${row.id}" data-dataset-code="${datasetCode}" ${state.filters[datasetCode].rows.length === 1 ? 'disabled' : ''}>Удалить</button>
+        <button class="btn btn-secondary btn-small btn-danger" data-remove-row="${row.id}" data-dataset-code="${datasetCode}" ${group.rows.length === 1 ? 'disabled' : ''}>Удалить</button>
       </div>
+    `;
+  }
+
+  function renderJoinControl(datasetCode, row, index) {
+    if (index === 0) return `<div class="logic-anchor">Старт</div>`;
+    return `
+      <label class="field logic-field">
+        <span class="field-label">Связь</span>
+        <select data-row-join="${row.id}" data-dataset-code="${datasetCode}">
+          <option value="AND" ${row.join === 'AND' ? 'selected' : ''}>И</option>
+          <option value="OR" ${row.join === 'OR' ? 'selected' : ''}>ИЛИ</option>
+        </select>
+      </label>
     `;
   }
 
@@ -2696,12 +528,19 @@ window.APP_DATA = {
     return `<input type="text" value="${value}" placeholder="${fieldPlaceholder}" data-row-value="${row.id}" data-value-key="${valueKey}" data-dataset-code="${datasetCode}">`;
   }
 
+  function isUnitStart(rows, index) {
+    if (index === 0) return true;
+    const current = rows[index];
+    const prev = rows[index - 1];
+    if (current.clusterId) return prev.clusterId !== current.clusterId;
+    return true;
+  }
+
   function bindFilterEvents() {
     document.querySelectorAll('[data-all-data-toggle]').forEach((input) => {
       input.addEventListener('change', () => {
         state.filters[input.dataset.allDataToggle].allData = input.checked;
         renderFilters();
-        renderScenarioSummary();
       });
     });
 
@@ -2710,7 +549,26 @@ window.APP_DATA = {
         const datasetCode = button.dataset.addRow;
         state.filters[datasetCode].rows.push(createRow(datasetCode, 'AND'));
         renderFilters();
-        renderScenarioSummary();
+      });
+    });
+
+    document.querySelectorAll('[data-group-selected]').forEach((button) => {
+      button.addEventListener('click', () => groupSelectedRows(button.dataset.groupSelected));
+    });
+
+    document.querySelectorAll('[data-ungroup-selected]').forEach((button) => {
+      button.addEventListener('click', () => ungroupSelectedRows(button.dataset.ungroupSelected));
+    });
+
+    document.querySelectorAll('[data-row-select]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const group = state.filters[input.dataset.datasetCode];
+        if (input.checked) {
+          if (!group.selectedRowIds.includes(input.dataset.rowSelect)) group.selectedRowIds.push(input.dataset.rowSelect);
+        } else {
+          group.selectedRowIds = group.selectedRowIds.filter((id) => id !== input.dataset.rowSelect);
+        }
+        renderFilters();
       });
     });
 
@@ -2718,65 +576,110 @@ window.APP_DATA = {
       button.addEventListener('click', () => {
         const datasetCode = button.dataset.datasetCode;
         const rowId = button.dataset.removeRow;
-        const rows = state.filters[datasetCode].rows.filter((row) => row.id !== rowId);
-        state.filters[datasetCode].rows = rows.length ? rows : [createRow(datasetCode)];
+        const group = state.filters[datasetCode];
+        group.rows = group.rows.filter((row) => row.id !== rowId);
+        group.selectedRowIds = group.selectedRowIds.filter((id) => id !== rowId);
+        if (!group.rows.length) group.rows = [createRow(datasetCode)];
+        cleanupClusters(group);
         renderFilters();
-        renderScenarioSummary();
       });
     });
 
     document.querySelectorAll('[data-row-join]').forEach((select) => {
       select.addEventListener('change', () => {
-        const datasetCode = select.dataset.datasetCode;
-        const row = state.filters[datasetCode].rows.find((item) => item.id === select.dataset.rowJoin);
+        const group = state.filters[select.dataset.datasetCode];
+        const row = group.rows.find((item) => item.id === select.dataset.rowJoin);
         row.join = select.value;
-        renderScenarioSummary();
       });
     });
 
     document.querySelectorAll('[data-row-field]').forEach((select) => {
       select.addEventListener('change', () => {
-        const datasetCode = select.dataset.datasetCode;
-        const row = state.filters[datasetCode].rows.find((item) => item.id === select.dataset.rowField);
-        const meta = getFieldMeta(datasetCode, select.value);
+        const group = state.filters[select.dataset.datasetCode];
+        const row = group.rows.find((item) => item.id === select.dataset.rowField);
+        const meta = getFieldMeta(select.dataset.datasetCode, select.value);
         row.field = select.value;
         row.operator = defaultOperator(meta.type);
         row.value1 = '';
         row.value2 = '';
         renderFilters();
-        renderScenarioSummary();
       });
     });
 
     document.querySelectorAll('[data-row-operator]').forEach((select) => {
       select.addEventListener('change', () => {
-        const datasetCode = select.dataset.datasetCode;
-        const row = state.filters[datasetCode].rows.find((item) => item.id === select.dataset.rowOperator);
+        const group = state.filters[select.dataset.datasetCode];
+        const row = group.rows.find((item) => item.id === select.dataset.rowOperator);
         row.operator = select.value;
         row.value1 = '';
         row.value2 = '';
         renderFilters();
-        renderScenarioSummary();
       });
     });
 
     document.querySelectorAll('[data-row-value]').forEach((input) => {
       const event = input.tagName === 'SELECT' ? 'change' : 'input';
       input.addEventListener(event, () => {
-        const datasetCode = input.dataset.datasetCode;
-        const row = state.filters[datasetCode].rows.find((item) => item.id === input.dataset.rowValue);
+        const group = state.filters[input.dataset.datasetCode];
+        const row = group.rows.find((item) => item.id === input.dataset.rowValue);
         row[input.dataset.valueKey] = input.value;
-        renderScenarioSummary();
+      });
+    });
+
+    document.querySelectorAll('[data-cluster-mode]').forEach((select) => {
+      select.addEventListener('change', () => {
+        const group = state.filters[select.dataset.datasetCode];
+        group.clusterModes[select.dataset.clusterMode] = select.value;
       });
     });
   }
 
+  function groupSelectedRows(datasetCode) {
+    const group = state.filters[datasetCode];
+    const selectedRows = group.rows.filter((row) => group.selectedRowIds.includes(row.id));
+    if (selectedRows.length < 2) {
+      alert('Выделите минимум две строки для группировки.');
+      return;
+    }
+    const clusterId = cryptoId();
+    selectedRows.forEach((row) => { row.clusterId = clusterId; });
+    group.clusterModes[clusterId] = 'OR';
+    renderFilters();
+  }
+
+  function ungroupSelectedRows(datasetCode) {
+    const group = state.filters[datasetCode];
+    const selectedRows = group.rows.filter((row) => group.selectedRowIds.includes(row.id));
+    if (!selectedRows.length) {
+      alert('Выделите строки, которые нужно разгруппировать.');
+      return;
+    }
+    selectedRows.forEach((row) => { row.clusterId = null; });
+    cleanupClusters(group);
+    renderFilters();
+  }
+
+  function cleanupClusters(group) {
+    const counts = {};
+    group.rows.forEach((row) => {
+      if (!row.clusterId) return;
+      counts[row.clusterId] = (counts[row.clusterId] || 0) + 1;
+    });
+    Object.keys(group.clusterModes).forEach((clusterId) => {
+      if (!counts[clusterId] || counts[clusterId] < 2) {
+        delete group.clusterModes[clusterId];
+        group.rows.forEach((row) => {
+          if (row.clusterId === clusterId) row.clusterId = null;
+        });
+      }
+    });
+  }
+
   function renderWeightsPanel() {
-    const visibleDatasets = activeFilterDatasets();
     if (!state.customPriorityRules.length) {
       state.customPriorityRules = [createPriorityRule(state.mainDataset)];
     }
-
+    const visibleDatasets = activeFilterDatasets();
     $('weightsPanel').innerHTML = `
       <div class="weights-stack">
         ${Object.entries(state.weights).map(([key, value]) => `
@@ -2793,7 +696,7 @@ window.APP_DATA = {
         <div class="card-head small-head">
           <div>
             <h3>Кастомные правила приоритизации</h3>
-            <p>Можно добавить свой коэффициент по конкретному набору, атрибуту и условию.</p>
+            <p>Можно добавить свой коэффициент по набору, атрибуту, условию и значению.</p>
           </div>
           <button class="btn btn-secondary btn-small" id="addPriorityRuleBtn">Добавить правило</button>
         </div>
@@ -2806,26 +709,35 @@ window.APP_DATA = {
     $('weightsPanel').querySelectorAll('[data-weight-key]').forEach((input) => {
       input.addEventListener('input', (e) => {
         state.weights[e.target.dataset.weightKey] = Number(e.target.value || 0);
-        renderScenarioSummary();
+        if (state.results.length) recomputeResults();
       });
     });
 
     $('addPriorityRuleBtn')?.addEventListener('click', () => {
       state.customPriorityRules.push(createPriorityRule(state.mainDataset));
       renderWeightsPanel();
-      renderScenarioSummary();
     });
 
     bindPriorityRuleEvents(visibleDatasets);
   }
 
   function renderPriorityRule(rule, index, visibleDatasets) {
-    const allowedDatasets = visibleDatasets.includes(rule.datasetCode) ? visibleDatasets : [state.mainDataset, ...visibleDatasets.filter((code) => code !== state.mainDataset)];
+    const allowedDatasets = visibleDatasets.includes(rule.datasetCode) ? visibleDatasets : visibleDatasets.length ? visibleDatasets : [state.mainDataset];
+    const datasetCode = allowedDatasets.includes(rule.datasetCode) ? rule.datasetCode : allowedDatasets[0];
+    if (datasetCode !== rule.datasetCode) {
+      rule.datasetCode = datasetCode;
+      const field = FILTER_FIELDS[datasetCode][0];
+      rule.field = field.code;
+      rule.operator = defaultOperator(field.type);
+      rule.value1 = '';
+      rule.value2 = '';
+    }
     const fieldMeta = getFieldMeta(rule.datasetCode, rule.field) || FILTER_FIELDS[rule.datasetCode][0];
     const operatorOptions = operatorsFor(fieldMeta.type);
     const isBetween = rule.operator === 'between';
+
     return `
-      <div class="priority-rule" data-priority-rule="${rule.id}">
+      <div class="priority-rule">
         <div class="priority-rule-title">Правило ${index + 1}</div>
         <div class="priority-grid ${isBetween ? 'between' : ''}">
           <label class="field">
@@ -2865,7 +777,7 @@ window.APP_DATA = {
             <span class="field-label">Коэффициент</span>
             <input type="number" min="0" max="100" step="1" value="${rule.coefficient}" data-priority-coef="${rule.id}">
           </label>
-          <button class="btn btn-secondary btn-small btn-danger rule-remove" data-priority-remove="${rule.id}" ${state.customPriorityRules.length === 1 ? 'disabled' : ''}>Удалить</button>
+          <button class="btn btn-secondary btn-small btn-danger" data-priority-remove="${rule.id}" ${state.customPriorityRules.length === 1 ? 'disabled' : ''}>Удалить</button>
         </div>
       </div>
     `;
@@ -2881,7 +793,7 @@ window.APP_DATA = {
     return `<input type="text" value="${value}" placeholder="${rule.operator === 'in' ? 'Через запятую' : 'Введите значение'}" data-priority-value="${rule.id}" data-value-key="${key}">`;
   }
 
-  function bindPriorityRuleEvents(visibleDatasets) {
+  function bindPriorityRuleEvents() {
     document.querySelectorAll('[data-priority-dataset]').forEach((select) => {
       select.addEventListener('change', () => {
         const rule = state.customPriorityRules.find((item) => item.id === select.dataset.priorityDataset);
@@ -2892,6 +804,7 @@ window.APP_DATA = {
         rule.value1 = '';
         rule.value2 = '';
         renderWeightsPanel();
+        if (state.results.length) recomputeResults();
       });
     });
 
@@ -2904,6 +817,7 @@ window.APP_DATA = {
         rule.value1 = '';
         rule.value2 = '';
         renderWeightsPanel();
+        if (state.results.length) recomputeResults();
       });
     });
 
@@ -2914,6 +828,7 @@ window.APP_DATA = {
         rule.value1 = '';
         rule.value2 = '';
         renderWeightsPanel();
+        if (state.results.length) recomputeResults();
       });
     });
 
@@ -2922,7 +837,7 @@ window.APP_DATA = {
       input.addEventListener(event, () => {
         const rule = state.customPriorityRules.find((item) => item.id === input.dataset.priorityValue);
         rule[input.dataset.valueKey] = input.value;
-        renderScenarioSummary();
+        if (state.results.length) recomputeResults();
       });
     });
 
@@ -2930,7 +845,7 @@ window.APP_DATA = {
       input.addEventListener('input', () => {
         const rule = state.customPriorityRules.find((item) => item.id === input.dataset.priorityCoef);
         rule.coefficient = Number(input.value || 0);
-        renderScenarioSummary();
+        if (state.results.length) recomputeResults();
       });
     });
 
@@ -2939,101 +854,25 @@ window.APP_DATA = {
         state.customPriorityRules = state.customPriorityRules.filter((item) => item.id !== button.dataset.priorityRemove);
         if (!state.customPriorityRules.length) state.customPriorityRules = [createPriorityRule(state.mainDataset)];
         renderWeightsPanel();
-        renderScenarioSummary();
+        if (state.results.length) recomputeResults();
       });
     });
   }
 
-  function renderScenarioSummary() {
-    const tool = TOOL_OPTIONS.find((item) => item.code === state.tool);
-    const datasetText = [DATASETS[state.mainDataset]?.title, ...state.compareDatasets.map((code) => DATASETS[code].title)].filter(Boolean).join(' · ');
-    const filterCount = activeFilterDatasets().reduce((sum, code) => {
-      const group = state.filters[code];
-      if (!group || group.allData) return sum;
-      return sum + group.rows.filter(hasValue).length;
-    }, 0);
-    const weightsLabel = state.useCustomWeights ? `Ручная настройка + ${state.customPriorityRules.length} кастомных правил` : 'Базовые коэффициенты';
-
-    const summaryNode = $('scenarioSummary');
-    if (!summaryNode) return;
-    summaryNode.innerHTML = `
-      <div class="summary-box">
-        <div class="summary-box-title">Инструмент</div>
-        <strong>${tool?.title || '—'}</strong>
-        <div class="dataset-option-description">${tool?.description || ''}</div>
-      </div>
-      <div class="summary-box">
-        <div class="summary-box-title">Наборы</div>
-        <strong>${datasetText || 'Наборы не выбраны'}</strong>
-        <div class="dataset-option-description">Основной набор: ${DATASETS[state.mainDataset]?.short || '—'}</div>
-      </div>
-      <div class="summary-box">
-        <div class="summary-box-title">Конфигурация</div>
-        <strong>${filterCount} активных условий</strong>
-        <div class="dataset-option-description">Приоритизация: ${weightsLabel}</div>
-      </div>
-    `;
-  }
-
   function hasValue(row) {
-    return Boolean(row.value1) || Boolean(row.value2);
+    return Boolean(String(row.value1 || '').trim()) || Boolean(String(row.value2 || '').trim());
   }
 
-  function applyTestScenario() {
-    state.mainDataset = 'ogh';
-    state.compareDatasets = ['sok', 'krr'];
-    renderDatasetPickers();
-
-    state.filters.ogh = {
-      ...createFilterGroup('ogh'),
-      rows: [
-        { id: cryptoId(), join: 'AND', field: 'kind', operator: 'eq', value1: 'ОДХ', value2: '' },
-        { id: cryptoId(), join: 'AND', field: 'passportEndDate', operator: 'gte', value1: '2025-08-31', value2: '' }
-      ]
-    };
-
-    state.filters.sok = {
-      ...createFilterGroup('sok'),
-      rows: [
-        { id: cryptoId(), join: 'AND', field: 'compareObjectType', operator: 'eq', value1: 'ОДХ', value2: '' },
-        { id: cryptoId(), join: 'AND', field: 'workYear', operator: 'between', value1: '2016', value2: '2025' },
-        { id: cryptoId(), join: 'AND', field: 'workType', operator: 'in', value1: 'Асфальт 1, Асфальт 2, Асфальт 3', value2: '' },
-        { id: cryptoId(), join: 'OR', field: 'compareObjectType', operator: 'eq', value1: 'ОКБ', value2: '' },
-        { id: cryptoId(), join: 'AND', field: 'workYear', operator: 'between', value1: '2024', value2: '2025' },
-        { id: cryptoId(), join: 'AND', field: 'workType', operator: 'in', value1: 'Асфальт 1, Асфальт 2, Асфальт 3', value2: '' }
-      ]
-    };
-
-    state.filters.krr = {
-      ...createFilterGroup('krr'),
-      rows: [
-        { id: cryptoId(), join: 'AND', field: 'compareObjectType', operator: 'eq', value1: 'ОКБ', value2: '' },
-        { id: cryptoId(), join: 'AND', field: 'workYear', operator: 'between', value1: '2019', value2: '2023' },
-        { id: cryptoId(), join: 'AND', field: 'workType', operator: 'in', value1: 'Асфальт 1, Асфальт 2, Асфальт 3', value2: '' }
-      ]
-    };
-
-    renderFilters();
-    renderScenarioSummary();
-    alert('Тестовый сценарий заполнен. Структура уже соответствует новой логике по наборам и строкам условий.');
+  function comparable(value, type) {
+    if (type === 'number') return Number(value || 0);
+    if (type === 'date') return String(value || '');
+    return String(value || '').trim().toLowerCase();
   }
 
-  function evaluateDataset(records, datasetCode) {
-    const group = state.filters[datasetCode];
-    if (!group || group.allData) return records.slice();
-    const activeRows = group.rows.filter(hasValue);
-    if (!activeRows.length) return records.slice();
-    return records.filter((record) => evaluateRows(record, activeRows, datasetCode));
-  }
-
-  function evaluateRows(record, rows, datasetCode) {
-    if (!rows.length) return true;
-    let result = evaluateRow(record, rows[0], datasetCode);
-    for (let i = 1; i < rows.length; i += 1) {
-      const rowResult = evaluateRow(record, rows[i], datasetCode);
-      result = rows[i].join === 'OR' ? (result || rowResult) : (result && rowResult);
-    }
-    return result;
+  function normalize(value, type) {
+    if (type === 'number') return Number(value);
+    if (type === 'date') return String(value || '');
+    return String(value || '').trim().toLowerCase();
   }
 
   function evaluateRow(record, row, datasetCode) {
@@ -3058,58 +897,109 @@ window.APP_DATA = {
     return true;
   }
 
-  function normalize(value, type) {
-    if (type === 'number') return Number(value);
-    if (type === 'date') return String(value || '');
-    return String(value || '').trim().toLowerCase();
+  function buildUnits(rows, datasetCode) {
+    const units = [];
+    for (let i = 0; i < rows.length; i += 1) {
+      const row = rows[i];
+      if (!hasValue(row)) continue;
+
+      if (row.clusterId) {
+        const clusterRows = [row];
+        while (i + 1 < rows.length && rows[i + 1].clusterId === row.clusterId) {
+          i += 1;
+          if (hasValue(rows[i])) clusterRows.push(rows[i]);
+        }
+        units.push({
+          join: clusterRows[0].join,
+          clusterId: row.clusterId,
+          mode: state.filters[datasetCode].clusterModes[row.clusterId] || 'OR',
+          rows: clusterRows
+        });
+      } else {
+        units.push({ join: row.join, rows: [row], mode: 'ROW' });
+      }
+    }
+    return units;
   }
 
-  function comparable(value, type) {
-    if (type === 'number') return Number(value || 0);
-    if (type === 'date') return Number(String(value || '').replaceAll('-', ''));
-    return Number(value || 0);
+  function evaluateUnit(record, unit, datasetCode) {
+    if (unit.mode === 'ROW') {
+      return evaluateRow(record, unit.rows[0], datasetCode);
+    }
+    const rowResults = unit.rows.map((row) => evaluateRow(record, row, datasetCode));
+    if (unit.mode === 'AND') return rowResults.every(Boolean);
+    if (unit.mode === 'NOT') return !rowResults.some(Boolean);
+    return rowResults.some(Boolean);
+  }
+
+  function evaluateDataset(records, datasetCode) {
+    const group = state.filters[datasetCode];
+    if (!group || group.allData) return records.slice();
+    const units = buildUnits(group.rows, datasetCode);
+    if (!units.length) return records.slice();
+
+    return records.filter((record) => {
+      let result = evaluateUnit(record, units[0], datasetCode);
+      for (let i = 1; i < units.length; i += 1) {
+        const unitResult = evaluateUnit(record, units[i], datasetCode);
+        result = units[i].join === 'OR' ? (result || unitResult) : (result && unitResult);
+      }
+      return result;
+    });
   }
 
   async function runAnalysis() {
-    if (state.tool !== 'predictive') return alert('Сейчас рабочая логика реализована только для инструмента предиктивного анализа.');
-    if (state.mainDataset !== 'ogh') return alert('В демо-версии расчёт результата пока поддержан только для случая, когда анализируемый набор — ОГХ.');
-
-    state.currentStep = 5;
-    renderStepper();
     $('loadingSection').classList.remove('hidden');
     $('resultsSection').classList.add('hidden');
+    await showLoading('Подготовка анализируемого набора...', 18);
 
-    await showLoading('Подготовка основного набора...', 20);
-    const filteredMain = evaluateDataset(mainRecords, 'ogh');
+    const filteredMain = evaluateDataset(mainRecords, state.mainDataset);
+    await showLoading('Подготовка сравниваемых наборов...', 44);
 
-    await showLoading('Подготовка наборов сравнения...', 48);
     const filteredCompare = {};
     state.compareDatasets.forEach((code) => {
       filteredCompare[code] = evaluateDataset(compareRecords[code] || [], code);
     });
+    await showLoading('Расчёт приоритетов и формирование реестра...', 78);
 
-    await showLoading('Передача выборок в сервис пересечений...', 76);
-    const results = buildResults(filteredMain, filteredCompare);
-
-    await showLoading('Формирование карты и итогового реестра...', 100);
-    state.results = results;
     state.resultMeta = {
       mainCount: filteredMain.length,
-      compareCounts: Object.fromEntries(state.compareDatasets.map((code) => [code, filteredCompare[code]?.length || 0]))
+      compareCounts: Object.fromEntries(state.compareDatasets.map((code) => [code, (filteredCompare[code] || []).length]))
     };
+    state.results = buildResults(filteredMain, filteredCompare);
 
+    await showLoading('Отрисовка карты и таблицы...', 100);
     $('loadingSection').classList.add('hidden');
-    $('resultsSection').classList.remove('hidden');
 
+    $('criteriaCard').classList.add('is-collapsed');
+    $('launchCard').classList.add('is-collapsed');
+    $('resultsSection').classList.remove('hidden');
+    state.currentStep = 5;
+    renderStepper();
     renderResults();
-    window.scrollTo({ top: $('resultsSection').offsetTop - 20, behavior: 'smooth' });
+    scrollToNode($('resultsSection'));
+  }
+
+  function recomputeResults() {
+    if (!state.resultMeta) return;
+    const filteredMain = evaluateDataset(mainRecords, state.mainDataset);
+    const filteredCompare = {};
+    state.compareDatasets.forEach((code) => {
+      filteredCompare[code] = evaluateDataset(compareRecords[code] || [], code);
+    });
+    state.resultMeta = {
+      mainCount: filteredMain.length,
+      compareCounts: Object.fromEntries(state.compareDatasets.map((code) => [code, (filteredCompare[code] || []).length]))
+    };
+    state.results = buildResults(filteredMain, filteredCompare);
+    renderResults();
   }
 
   function showLoading(text, percent) {
     $('loadingText').textContent = text;
     $('loadingPercent').textContent = `${percent}%`;
     $('loadingFill').style.width = `${percent}%`;
-    return new Promise((resolve) => setTimeout(resolve, 260));
+    return new Promise((resolve) => setTimeout(resolve, 240));
   }
 
   function buildResults(filteredMain, filteredCompare) {
@@ -3124,11 +1014,15 @@ window.APP_DATA = {
     const enriched = filteredMain.map((item) => {
       const matches = compareByObjectId.get(item.objectId) || [];
       const matchedDatasets = [...new Set(matches.map((m) => m.datasetCode))];
-      const reasonParts = [item.reason || ''];
-      reasonParts.unshift(matchedDatasets.length ? `Найдено пересечений: ${matchedDatasets.map((code) => DATASETS[code].short).join(', ')}` : 'Пересечения в выбранных наборах не найдены');
-
       const score = calculatePriority(item, matches);
       const priorityLevel = score >= 0.72 ? 'high' : score >= 0.45 ? 'medium' : 'low';
+      const reasonParts = [];
+      if (matchedDatasets.length) {
+        reasonParts.push(`Найдено пересечений: ${matchedDatasets.map((code) => DATASETS[code].short).join(', ')}`);
+      } else {
+        reasonParts.push('Пересечения в выбранных наборах не найдены');
+      }
+      if (item.reason) reasonParts.push(item.reason);
 
       return {
         ...item,
@@ -3136,7 +1030,7 @@ window.APP_DATA = {
         matchedDatasets,
         priorityScore: score,
         priorityLevel,
-        resultReason: reasonParts.filter(Boolean).join('; ')
+        resultReason: reasonParts.join('; ')
       };
     }).filter((item) => item.uncoveredArea > 0);
 
@@ -3147,7 +1041,7 @@ window.APP_DATA = {
     const weights = state.useCustomWeights ? state.weights : baseWeights;
     const normalized = {
       coveragePercent: 1 - clamp(item.coveragePercent / 100, 0, 1),
-      repairAge: clamp(item.repairAge / 10, 0, 1),
+      repairAge: clamp((item.repairAge || 0) / 10, 0, 1),
       estimatedCost: clamp(item.estimatedCost / 40000000, 0, 1),
       recommendedVolume: clamp(item.recommendedVolume / 15000, 0, 1)
     };
@@ -3158,7 +1052,9 @@ window.APP_DATA = {
     if (state.useCustomWeights) {
       const bonus = state.customPriorityRules.reduce((sum, rule) => {
         if (!hasValue(rule)) return sum;
-        const sourceRecords = rule.datasetCode === 'ogh' ? [item] : compareMatches.filter((match) => match.datasetCode === rule.datasetCode);
+        const sourceRecords = rule.datasetCode === 'ogh'
+          ? [item]
+          : compareMatches.filter((match) => match.datasetCode === rule.datasetCode);
         const matched = sourceRecords.some((record) => evaluateRow(record, rule, rule.datasetCode));
         return matched ? sum + (Number(rule.coefficient || 0) / 100) : sum;
       }, 0);
@@ -3210,7 +1106,7 @@ window.APP_DATA = {
 
   function renderTable() {
     $('resultsBody').innerHTML = state.results.map((item, index) => `
-      <tr>
+      <tr data-result-object="${item.objectId}" class="${state.selectedObjectId === item.objectId ? 'is-active' : ''}">
         <td>${index + 1}</td>
         <td>${item.name}</td>
         <td>${item.objectId}</td>
@@ -3225,24 +1121,34 @@ window.APP_DATA = {
         <td>${item.lastWorkYear ?? '—'}</td>
         <td>${item.repairAge ?? '—'}</td>
         <td><span class="priority-pill ${item.priorityLevel}">${priorityLabel(item.priorityLevel)}</span></td>
-        <td><button class="table-link" data-map-object="${item.objectId}">На карте</button></td>
       </tr>
     `).join('');
 
-    $('resultsBody').querySelectorAll('[data-map-object]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const objectId = Number(button.dataset.mapObject);
+    $('resultsBody').querySelectorAll('[data-result-object]').forEach((row) => {
+      row.addEventListener('click', () => {
+        const objectId = Number(row.dataset.resultObject);
         const item = state.results.find((record) => record.objectId === objectId);
+        state.selectedObjectId = objectId;
         highlightOnMap(item);
+        renderTable();
       });
     });
   }
 
+  function renderMapLegend() {
+    $('mapLegend').innerHTML = `
+      <div class="map-legend-title">Уровень приоритета</div>
+      <div class="map-legend-row"><span class="map-legend-swatch" style="background:#15803d"></span>Высокий</div>
+      <div class="map-legend-row"><span class="map-legend-swatch" style="background:#c97711"></span>Средний</div>
+      <div class="map-legend-row"><span class="map-legend-swatch" style="background:#d23b3b"></span>Низкий</div>
+    `;
+  }
+
   function renderMap() {
     if (!state.map) {
-      state.map = L.map('map');
+      state.map = L.map('map', { attributionControl: false });
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: ''
       }).addTo(state.map);
     }
 
@@ -3250,11 +1156,7 @@ window.APP_DATA = {
 
     const features = state.results.map((item) => toFeature(item));
     state.mapLayer = L.geoJSON(features, {
-      style: (feature) => ({
-        color: feature.properties.priorityLevel === 'high' ? '#15803d' : feature.properties.priorityLevel === 'medium' ? '#c97711' : '#d23b3b',
-        weight: 2,
-        fillOpacity: .18
-      }),
+      style: (feature) => styleByPriority(feature.properties.priorityLevel, feature.properties.objectId === state.selectedObjectId),
       onEachFeature: (feature, layer) => {
         layer.bindPopup(`<strong>${feature.properties.name}</strong><br>${feature.properties.area}, ${feature.properties.district}<br>Приоритет: ${priorityLabel(feature.properties.priorityLevel)}`);
       }
@@ -3264,6 +1166,23 @@ window.APP_DATA = {
     else state.map.setView([55.751244, 37.618423], 10);
 
     setTimeout(() => state.map.invalidateSize(), 50);
+
+    if (!state.selectedObjectId && state.results.length) {
+      state.selectedObjectId = state.results[0].objectId;
+    }
+    if (state.selectedObjectId) {
+      const selected = state.results.find((item) => item.objectId === state.selectedObjectId);
+      if (selected) highlightOnMap(selected, false);
+    }
+  }
+
+  function styleByPriority(priorityLevel, selected = false) {
+    const color = priorityLevel === 'high' ? '#15803d' : priorityLevel === 'medium' ? '#c97711' : '#d23b3b';
+    return {
+      color,
+      weight: selected ? 4 : 2,
+      fillOpacity: selected ? 0.28 : 0.18
+    };
   }
 
   function toFeature(item) {
@@ -3281,12 +1200,17 @@ window.APP_DATA = {
     };
   }
 
-  function highlightOnMap(item) {
+  function highlightOnMap(item, openPopup = true) {
     if (!item || !state.mapLayer) return;
-    const targetLayer = state.mapLayer.getLayers().find((layer) => layer.feature?.properties?.objectId === item.objectId);
-    if (!targetLayer) return;
-    state.map.fitBounds(targetLayer.getBounds(), { padding: [30, 30] });
-    targetLayer.openPopup();
+    state.selectedObjectId = item.objectId;
+    state.mapLayer.eachLayer((layer) => {
+      const selected = layer.feature?.properties?.objectId === item.objectId;
+      layer.setStyle(styleByPriority(layer.feature?.properties?.priorityLevel, selected));
+      if (selected) {
+        state.map.fitBounds(layer.getBounds(), { padding: [32, 32] });
+        if (openPopup) layer.openPopup();
+      }
+    });
   }
 
   function priorityLabel(value) {
@@ -3341,22 +1265,32 @@ window.APP_DATA = {
     state.results = [];
     state.resultMeta = null;
     state.currentStep = 1;
+    state.selectedObjectId = null;
+
+    $('toolSection').classList.remove('is-collapsed');
+    $('datasetsSection').classList.remove('is-collapsed');
     $('datasetsSection').classList.add('hidden');
     $('filtersSection').classList.add('hidden');
+    $('criteriaCard').classList.remove('is-collapsed');
+    $('launchCard').classList.remove('is-collapsed');
     $('loadingSection').classList.add('hidden');
     $('resultsSection').classList.add('hidden');
     $('weightsToggle').checked = false;
     $('weightsPanel').classList.add('hidden');
+
     resetFilters();
     renderToolOptions();
     renderDatasetPickers();
     renderBaseWeights();
     renderWeightsPanel();
     renderFilters();
-    renderScenarioSummary();
     renderStepper();
     updateToolHeader();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollToNode(document.body);
+  }
+
+  function scrollToNode(node) {
+    window.scrollTo({ top: Math.max((node?.offsetTop || 0) - 20, 0), behavior: 'smooth' });
   }
 
   init();
