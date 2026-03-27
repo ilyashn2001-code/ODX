@@ -31,7 +31,7 @@ body { min-height: 100vh; }
 button, select, input { font: inherit; }
 
 .page-shell {
-  width: min(1540px, calc(100vw - 24px));
+  width: min(1320px, calc(100vw - 32px));
   margin: 0 auto;
   padding: 18px;
   display: grid;
@@ -694,3 +694,7 @@ input:focus {
   .priority-rule { grid-template-columns: 1fr 1fr; }
   .summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
+
+.multi-select{min-height:120px;padding:8px 10px;}
+.criteria-row{align-items:start;}
+.results-table td.numeric-cell,.results-table th.numeric-cell{text-align:right;}
