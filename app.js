@@ -1,4 +1,3 @@
-
 (() => {
   const APP = window.APP_DATA || {};
   const $ = (id) => document.getElementById(id);
@@ -180,16 +179,28 @@
     return (FILTER_FIELDS[datasetCode] || []).find((field) => field.code === fieldCode);
   }
 
-  function createRow(datasetCode, join = 'AND') {
+  function createRow(datasetCode) {
     const field = FILTER_FIELDS[datasetCode]?.[0];
     return {
       id: cryptoId(),
-      join,
+      type: 'row',
       field: field?.code || 'name',
       operator: defaultOperator(field?.type || 'text'),
       value1: '',
       value2: '',
-      clusterId: null
+      negate: false
+    };
+  }
+
+  function createGroupNode(datasetCode, options = {}) {
+    return {
+      id: cryptoId(),
+      type: 'group',
+      datasetCode,
+      operator: options.operator || 'AND',
+      negate: Boolean(options.negate),
+      isRoot: Boolean(options.isRoot),
+      children: options.children || [createRow(datasetCode)]
     };
   }
 
@@ -198,9 +209,8 @@
       id: cryptoId(),
       datasetCode,
       allData: false,
-      rows: [createRow(datasetCode)],
-      selectedRowIds: [],
-      clusterModes: {}
+      root: createGroupNode(datasetCode, { isRoot: true }),
+      selectedIds: []
     };
   }
 
@@ -213,7 +223,8 @@
       operator: defaultOperator(field.type),
       value1: '',
       value2: '',
-      coefficient: 10
+      coefficient: 10,
+      negate: false
     };
   }
 
@@ -365,8 +376,13 @@
 
   function renderFilterBlock(datasetCode) {
     const dataset = DATASETS[datasetCode];
-    const group = state.filters[datasetCode];
+    const filterState = state.filters[datasetCode];
     const role = datasetCode === state.mainDataset ? 'Основной набор' : 'Набор сравнения';
+    const selectedEntries = collectSelectedEntries(filterState.root, filterState.selectedIds);
+    const canGroup = selectedEntries.length >= 2 && selectedEntries.every((entry) => entry.parent?.id === selectedEntries[0].parent?.id);
+    const canUngroup = selectedEntries.some((entry) => entry.node.type === 'group' && !entry.node.isRoot);
+    const canDelete = selectedEntries.length > 0;
+
     return `
       <section class="filter-block" data-dataset-block="${datasetCode}">
         <div class="filter-block-head">
@@ -378,92 +394,88 @@
             <p>${dataset.description}</p>
           </div>
         </div>
-        <div class="group-box highlighted">
+        <div class="group-box highlighted filter-root-box">
           <div class="group-head single-group-head">
             <div>
               <div class="group-title">Группа условий для набора</div>
-              <div class="group-logic-note">Группа не удаляется. Можно редактировать строки, выделять их галочками и объединять в логические подгруппы.</div>
+              <div class="group-logic-note">Обычная строка содержит только выбор, атрибут, оператор, значение и компактное удаление. Группы создаются только через выделение строк и/или подгрупп.</div>
             </div>
             <label class="take-all-toggle">
-              <input type="checkbox" data-all-data-toggle="${datasetCode}" ${group.allData ? 'checked' : ''}>
-              <span>Взять в анализ все данные без фильтрации</span>
+              <input type="checkbox" data-all-data-toggle="${datasetCode}" ${filterState.allData ? 'checked' : ''}>
+              <span>Использовать все данные без фильтрации</span>
             </label>
           </div>
 
-          <div class="filters-toolbar ${group.allData ? 'disabled-area' : ''}">
-            <button class="btn btn-secondary btn-small" data-add-row="${datasetCode}" ${group.allData ? 'disabled' : ''}>Добавить условие</button>
-            <button class="btn btn-secondary btn-small" data-group-selected="${datasetCode}" ${group.allData ? 'disabled' : ''}>Группировать выделенные</button>
-            <button class="btn btn-secondary btn-small" data-ungroup-selected="${datasetCode}" ${group.allData ? 'disabled' : ''}>Разгруппировать</button>
-            <span class="group-toolbar-note">Выдели две или больше строки и объедини их в подгруппу.</span>
+          <div class="filters-toolbar ${filterState.allData ? 'disabled-area' : ''}">
+            <button class="btn btn-secondary btn-small" data-add-row="${datasetCode}" ${filterState.allData ? 'disabled' : ''}>Добавить строку</button>
+            <button class="btn btn-secondary btn-small" data-group-selected="${datasetCode}" ${!canGroup || filterState.allData ? 'disabled' : ''}>Сгруппировать</button>
+            <button class="btn btn-secondary btn-small" data-ungroup-selected="${datasetCode}" ${!canUngroup || filterState.allData ? 'disabled' : ''}>Разгруппировать</button>
+            <button class="btn btn-secondary btn-small" data-delete-selected="${datasetCode}" ${!canDelete || filterState.allData ? 'disabled' : ''}>Удалить выбранные</button>
+            <button class="btn btn-secondary btn-small" data-clear-selected="${datasetCode}" ${!canDelete || filterState.allData ? 'disabled' : ''}>Снять выделение</button>
           </div>
 
-          <div class="rows ${group.allData ? 'disabled-area' : ''}">
-            ${renderRows(datasetCode, group)}
-          </div>
-
-          <div class="group-footer ${group.allData ? 'disabled-area' : ''}">
-            <div class="group-logic-note">Условия внутри подгруппы можно связать через И, ИЛИ или НЕ. НЕ инвертирует результат выбранной подгруппы.</div>
+          <div class="criteria-tree ${filterState.allData ? 'disabled-area' : ''}">
+            ${renderGroupNode(datasetCode, filterState.root, 0, true)}
           </div>
         </div>
       </section>
     `;
   }
 
-  function renderRows(datasetCode, group) {
-    const rows = group.rows;
-    const html = [];
-    rows.forEach((row, index) => {
-      const prev = rows[index - 1];
-      const startsCluster = row.clusterId && (!prev || prev.clusterId !== row.clusterId);
-      if (startsCluster) html.push(renderClusterHeader(datasetCode, row));
-      html.push(renderRow(datasetCode, row, index));
-    });
-    return html.join('');
-  }
-
-  function renderClusterHeader(datasetCode, row) {
-    const mode = state.filters[datasetCode].clusterModes[row.clusterId] || 'OR';
+  function renderGroupNode(datasetCode, node, depth, isRoot = false) {
+    const selected = state.filters[datasetCode].selectedIds.includes(node.id);
+    const groupTitle = isRoot ? 'Корневая группа набора' : 'Группа условий';
     return `
-      <div class="grouped-strip ${mode === 'NOT' ? 'negated' : ''}">
-        <div>
-          <div class="grouped-strip-title">Подгруппа</div>
-          <div class="dataset-option-description">Выделенные строки объединены в отдельное логическое условие.</div>
+      <div class="criteria-group depth-${Math.min(depth, 4)} ${selected ? 'is-selected' : ''} ${isRoot ? 'is-root-group' : ''}" data-node-id="${node.id}">
+        <div class="criteria-group-head">
+          <div class="criteria-group-main">
+            ${isRoot ? '<span class="root-group-mark">Набор</span>' : `<input type="checkbox" data-node-select="${node.id}" data-dataset-code="${datasetCode}" ${selected ? 'checked' : ''}>`}
+            <div>
+              <div class="criteria-group-title">${groupTitle}</div>
+              <div class="dataset-option-description">${isRoot ? 'Группа верхнего уровня. В неё можно добавлять строки и подгруппы.' : 'Подгруппа для объединения строк и других групп.'}</div>
+            </div>
+          </div>
+          <div class="criteria-group-tools">
+            <label class="field compact-field">
+              <span class="field-label">Связка</span>
+              <select data-group-operator="${node.id}" data-dataset-code="${datasetCode}">
+                <option value="AND" ${node.operator === 'AND' ? 'selected' : ''}>И</option>
+                <option value="OR" ${node.operator === 'OR' ? 'selected' : ''}>ИЛИ</option>
+              </select>
+            </label>
+            <label class="negate-toggle">
+              <input type="checkbox" data-group-negate="${node.id}" data-dataset-code="${datasetCode}" ${node.negate ? 'checked' : ''}>
+              <span>НЕ</span>
+            </label>
+            ${isRoot ? '' : `<button class="icon-btn" title="Удалить группу" data-delete-node="${node.id}" data-dataset-code="${datasetCode}">✕</button>`}
+          </div>
         </div>
-        <label class="field">
-          <span class="field-label">Логика подгруппы</span>
-          <select data-cluster-mode="${row.clusterId}" data-dataset-code="${datasetCode}">
-            <option value="OR" ${mode === 'OR' ? 'selected' : ''}>ИЛИ</option>
-            <option value="AND" ${mode === 'AND' ? 'selected' : ''}>И</option>
-            <option value="NOT" ${mode === 'NOT' ? 'selected' : ''}>НЕ</option>
-          </select>
-        </label>
+        <div class="criteria-group-body">
+          ${node.children.map((child) => child.type === 'group'
+            ? renderGroupNode(datasetCode, child, depth + 1, false)
+            : renderRowNode(datasetCode, child, depth + 1)).join('')}
+        </div>
       </div>
     `;
   }
 
-  function renderRow(datasetCode, row, index) {
+  function renderRowNode(datasetCode, row, depth) {
     const fields = FILTER_FIELDS[datasetCode] || [];
     const meta = getFieldMeta(datasetCode, row.field) || fields[0];
     const operators = operatorsFor(meta.type);
     const isBetween = row.operator === 'between';
     const placeholder = meta.type === 'text' ? 'Введите значение' : meta.type === 'number' ? 'Например, 2025' : '';
-    const group = state.filters[datasetCode];
-    const selected = group.selectedRowIds.includes(row.id);
-    const unitStart = isUnitStart(group.rows, index);
-    const classes = [
-      'row-filter',
-      isBetween ? '' : 'single-value',
-      selected ? 'row-selected' : '',
-      row.clusterId ? 'row-in-cluster' : '',
-      unitStart ? 'row-highlighted' : ''
-    ].filter(Boolean).join(' ');
+    const selected = state.filters[datasetCode].selectedIds.includes(row.id);
 
     return `
-      <div class="${classes}" data-row-id="${row.id}">
-        <div class="row-select-box">
-          <input type="checkbox" data-row-select="${row.id}" data-dataset-code="${datasetCode}" ${selected ? 'checked' : ''}>
+      <div class="criteria-row depth-${Math.min(depth, 4)} ${selected ? 'is-selected' : ''}" data-node-id="${row.id}">
+        <div class="criteria-row-select">
+          <input type="checkbox" data-node-select="${row.id}" data-dataset-code="${datasetCode}" ${selected ? 'checked' : ''}>
         </div>
-        ${unitStart ? renderJoinControl(datasetCode, row, index) : `<div class="logic-anchor">↳</div>`}
+        <label class="negate-toggle row-negate-toggle">
+          <input type="checkbox" data-row-negate="${row.id}" data-dataset-code="${datasetCode}" ${row.negate ? 'checked' : ''}>
+          <span>НЕ</span>
+        </label>
         <label class="field">
           <span class="field-label">Атрибут</span>
           <select data-row-field="${row.id}" data-dataset-code="${datasetCode}">
@@ -490,21 +502,8 @@
             ${renderValueControl(datasetCode, row, meta, 'value1', placeholder)}
           </label>
         `}
-        <button class="btn btn-secondary btn-small btn-danger" data-remove-row="${row.id}" data-dataset-code="${datasetCode}" ${group.rows.length === 1 ? 'disabled' : ''}>Удалить</button>
+        <button class="icon-btn row-delete-btn" title="Удалить строку" data-delete-node="${row.id}" data-dataset-code="${datasetCode}">✕</button>
       </div>
-    `;
-  }
-
-  function renderJoinControl(datasetCode, row, index) {
-    if (index === 0) return `<div class="logic-anchor">Старт</div>`;
-    return `
-      <label class="field logic-field">
-        <span class="field-label">Связь</span>
-        <select data-row-join="${row.id}" data-dataset-code="${datasetCode}">
-          <option value="AND" ${row.join === 'AND' ? 'selected' : ''}>И</option>
-          <option value="OR" ${row.join === 'OR' ? 'selected' : ''}>ИЛИ</option>
-        </select>
-      </label>
     `;
   }
 
@@ -528,14 +527,6 @@
     return `<input type="text" value="${value}" placeholder="${fieldPlaceholder}" data-row-value="${row.id}" data-value-key="${valueKey}" data-dataset-code="${datasetCode}">`;
   }
 
-  function isUnitStart(rows, index) {
-    if (index === 0) return true;
-    const current = rows[index];
-    const prev = rows[index - 1];
-    if (current.clusterId) return prev.clusterId !== current.clusterId;
-    return true;
-  }
-
   function bindFilterEvents() {
     document.querySelectorAll('[data-all-data-toggle]').forEach((input) => {
       input.addEventListener('change', () => {
@@ -546,73 +537,93 @@
 
     document.querySelectorAll('[data-add-row]').forEach((button) => {
       button.addEventListener('click', () => {
-        const datasetCode = button.dataset.addRow;
-        state.filters[datasetCode].rows.push(createRow(datasetCode, 'AND'));
+        const filterState = state.filters[button.dataset.addRow];
+        filterState.root.children.push(createRow(button.dataset.addRow));
         renderFilters();
       });
     });
 
-    document.querySelectorAll('[data-group-selected]').forEach((button) => {
-      button.addEventListener('click', () => groupSelectedRows(button.dataset.groupSelected));
-    });
-
-    document.querySelectorAll('[data-ungroup-selected]').forEach((button) => {
-      button.addEventListener('click', () => ungroupSelectedRows(button.dataset.ungroupSelected));
-    });
-
-    document.querySelectorAll('[data-row-select]').forEach((input) => {
+    document.querySelectorAll('[data-node-select]').forEach((input) => {
       input.addEventListener('change', () => {
-        const group = state.filters[input.dataset.datasetCode];
+        const filterState = state.filters[input.dataset.datasetCode];
         if (input.checked) {
-          if (!group.selectedRowIds.includes(input.dataset.rowSelect)) group.selectedRowIds.push(input.dataset.rowSelect);
+          if (!filterState.selectedIds.includes(input.dataset.nodeSelect)) filterState.selectedIds.push(input.dataset.nodeSelect);
         } else {
-          group.selectedRowIds = group.selectedRowIds.filter((id) => id !== input.dataset.rowSelect);
+          filterState.selectedIds = filterState.selectedIds.filter((id) => id !== input.dataset.nodeSelect);
         }
         renderFilters();
       });
     });
 
-    document.querySelectorAll('[data-remove-row]').forEach((button) => {
+    document.querySelectorAll('[data-group-selected]').forEach((button) => {
+      button.addEventListener('click', () => groupSelectedNodes(button.dataset.groupSelected));
+    });
+
+    document.querySelectorAll('[data-ungroup-selected]').forEach((button) => {
+      button.addEventListener('click', () => ungroupSelectedNodes(button.dataset.ungroupSelected));
+    });
+
+    document.querySelectorAll('[data-delete-selected]').forEach((button) => {
+      button.addEventListener('click', () => deleteSelectedNodes(button.dataset.deleteSelected));
+    });
+
+    document.querySelectorAll('[data-clear-selected]').forEach((button) => {
       button.addEventListener('click', () => {
-        const datasetCode = button.dataset.datasetCode;
-        const rowId = button.dataset.removeRow;
-        const group = state.filters[datasetCode];
-        group.rows = group.rows.filter((row) => row.id !== rowId);
-        group.selectedRowIds = group.selectedRowIds.filter((id) => id !== rowId);
-        if (!group.rows.length) group.rows = [createRow(datasetCode)];
-        cleanupClusters(group);
+        state.filters[button.dataset.clearSelected].selectedIds = [];
         renderFilters();
       });
     });
 
-    document.querySelectorAll('[data-row-join]').forEach((select) => {
+    document.querySelectorAll('[data-delete-node]').forEach((button) => {
+      button.addEventListener('click', () => {
+        deleteNodesByIds(button.dataset.datasetCode, [button.dataset.deleteNode]);
+      });
+    });
+
+    document.querySelectorAll('[data-group-operator]').forEach((select) => {
       select.addEventListener('change', () => {
-        const group = state.filters[select.dataset.datasetCode];
-        const row = group.rows.find((item) => item.id === select.dataset.rowJoin);
-        row.join = select.value;
+        const { node } = findNodeAndParent(state.filters[select.dataset.datasetCode].root, select.dataset.groupOperator) || {};
+        if (node) node.operator = select.value;
+        if (state.results.length) recomputeResults();
+      });
+    });
+
+    document.querySelectorAll('[data-group-negate]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const { node } = findNodeAndParent(state.filters[input.dataset.datasetCode].root, input.dataset.groupNegate) || {};
+        if (node) node.negate = input.checked;
+        if (state.results.length) recomputeResults();
+      });
+    });
+
+    document.querySelectorAll('[data-row-negate]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const { node } = findNodeAndParent(state.filters[input.dataset.datasetCode].root, input.dataset.rowNegate) || {};
+        if (node) node.negate = input.checked;
+        if (state.results.length) recomputeResults();
       });
     });
 
     document.querySelectorAll('[data-row-field]').forEach((select) => {
       select.addEventListener('change', () => {
-        const group = state.filters[select.dataset.datasetCode];
-        const row = group.rows.find((item) => item.id === select.dataset.rowField);
+        const { node } = findNodeAndParent(state.filters[select.dataset.datasetCode].root, select.dataset.rowField) || {};
         const meta = getFieldMeta(select.dataset.datasetCode, select.value);
-        row.field = select.value;
-        row.operator = defaultOperator(meta.type);
-        row.value1 = '';
-        row.value2 = '';
+        if (!node) return;
+        node.field = select.value;
+        node.operator = defaultOperator(meta.type);
+        node.value1 = '';
+        node.value2 = '';
         renderFilters();
       });
     });
 
     document.querySelectorAll('[data-row-operator]').forEach((select) => {
       select.addEventListener('change', () => {
-        const group = state.filters[select.dataset.datasetCode];
-        const row = group.rows.find((item) => item.id === select.dataset.rowOperator);
-        row.operator = select.value;
-        row.value1 = '';
-        row.value2 = '';
+        const { node } = findNodeAndParent(state.filters[select.dataset.datasetCode].root, select.dataset.rowOperator) || {};
+        if (!node) return;
+        node.operator = select.value;
+        node.value1 = '';
+        node.value2 = '';
         renderFilters();
       });
     });
@@ -620,64 +631,130 @@
     document.querySelectorAll('[data-row-value]').forEach((input) => {
       const event = input.tagName === 'SELECT' ? 'change' : 'input';
       input.addEventListener(event, () => {
-        const group = state.filters[input.dataset.datasetCode];
-        const row = group.rows.find((item) => item.id === input.dataset.rowValue);
-        row[input.dataset.valueKey] = input.value;
-      });
-    });
-
-    document.querySelectorAll('[data-cluster-mode]').forEach((select) => {
-      select.addEventListener('change', () => {
-        const group = state.filters[select.dataset.datasetCode];
-        group.clusterModes[select.dataset.clusterMode] = select.value;
+        const { node } = findNodeAndParent(state.filters[input.dataset.datasetCode].root, input.dataset.rowValue) || {};
+        if (!node) return;
+        node[input.dataset.valueKey] = input.value;
+        if (state.results.length) recomputeResults();
       });
     });
   }
 
-  function groupSelectedRows(datasetCode) {
-    const group = state.filters[datasetCode];
-    const selectedRows = group.rows.filter((row) => group.selectedRowIds.includes(row.id));
-    if (selectedRows.length < 2) {
-      alert('Выделите минимум две строки для группировки.');
-      return;
+  function collectSelectedEntries(root, selectedIds, parent = null, bucket = []) {
+    if (selectedIds.includes(root.id) && !root.isRoot) bucket.push({ node: root, parent });
+    if (root.type === 'group') {
+      root.children.forEach((child) => {
+        if (selectedIds.includes(child.id)) bucket.push({ node: child, parent: root });
+        if (child.type === 'group') collectSelectedEntries(child, selectedIds, root, bucket);
+      });
     }
-    const clusterId = cryptoId();
-    selectedRows.forEach((row) => { row.clusterId = clusterId; });
-    group.clusterModes[clusterId] = 'OR';
-    renderFilters();
+    return dedupeEntries(bucket);
   }
 
-  function ungroupSelectedRows(datasetCode) {
-    const group = state.filters[datasetCode];
-    const selectedRows = group.rows.filter((row) => group.selectedRowIds.includes(row.id));
-    if (!selectedRows.length) {
-      alert('Выделите строки, которые нужно разгруппировать.');
-      return;
-    }
-    selectedRows.forEach((row) => { row.clusterId = null; });
-    cleanupClusters(group);
-    renderFilters();
-  }
-
-  function cleanupClusters(group) {
-    const counts = {};
-    group.rows.forEach((row) => {
-      if (!row.clusterId) return;
-      counts[row.clusterId] = (counts[row.clusterId] || 0) + 1;
+  function dedupeEntries(entries) {
+    const seen = new Set();
+    return entries.filter((entry) => {
+      if (seen.has(entry.node.id)) return false;
+      seen.add(entry.node.id);
+      return true;
     });
-    Object.keys(group.clusterModes).forEach((clusterId) => {
-      if (!counts[clusterId] || counts[clusterId] < 2) {
-        delete group.clusterModes[clusterId];
-        group.rows.forEach((row) => {
-          if (row.clusterId === clusterId) row.clusterId = null;
-        });
+  }
+
+  function findNodeAndParent(root, targetId, parent = null) {
+    if (root.id === targetId) return { node: root, parent, index: parent ? parent.children.findIndex((item) => item.id === targetId) : -1 };
+    if (root.type !== 'group') return null;
+    for (let i = 0; i < root.children.length; i += 1) {
+      const child = root.children[i];
+      if (child.id === targetId) return { node: child, parent: root, index: i };
+      if (child.type === 'group') {
+        const found = findNodeAndParent(child, targetId, child);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  function groupSelectedNodes(datasetCode) {
+    const filterState = state.filters[datasetCode];
+    const entries = collectSelectedEntries(filterState.root, filterState.selectedIds);
+    if (entries.length < 2) {
+      alert('Выделите минимум две строки или группы для группировки.');
+      return;
+    }
+    const baseParentId = entries[0].parent?.id;
+    if (!baseParentId || !entries.every((entry) => entry.parent?.id === baseParentId)) {
+      alert('Сгруппировать можно только элементы одного уровня вложенности.');
+      return;
+    }
+
+    const parent = entries[0].parent;
+    const indexes = entries.map((entry) => parent.children.findIndex((child) => child.id === entry.node.id)).sort((a, b) => a - b);
+    const selectedNodes = parent.children.filter((child) => filterState.selectedIds.includes(child.id));
+    const newGroup = createGroupNode(datasetCode, { children: selectedNodes.length ? selectedNodes : [createRow(datasetCode)] });
+
+    parent.children = parent.children.filter((child) => !filterState.selectedIds.includes(child.id));
+    parent.children.splice(indexes[0], 0, newGroup);
+    filterState.selectedIds = [newGroup.id];
+    renderFilters();
+  }
+
+  function ungroupSelectedNodes(datasetCode) {
+    const filterState = state.filters[datasetCode];
+    const entries = collectSelectedEntries(filterState.root, filterState.selectedIds)
+      .filter((entry) => entry.node.type === 'group' && !entry.node.isRoot)
+      .sort((a, b) => (b.index || 0) - (a.index || 0));
+
+    if (!entries.length) {
+      alert('Выделите хотя бы одну подгруппу для разгруппировки.');
+      return;
+    }
+
+    entries.forEach((entry) => {
+      const parent = entry.parent;
+      if (!parent) return;
+      const index = parent.children.findIndex((child) => child.id === entry.node.id);
+      if (index < 0) return;
+      parent.children.splice(index, 1, ...entry.node.children);
+    });
+
+    filterState.selectedIds = [];
+    ensureDatasetHasAtLeastOneRow(filterState.root, datasetCode);
+    renderFilters();
+  }
+
+  function deleteSelectedNodes(datasetCode) {
+    const filterState = state.filters[datasetCode];
+    if (!filterState.selectedIds.length) return;
+    deleteNodesByIds(datasetCode, filterState.selectedIds.slice());
+  }
+
+  function deleteNodesByIds(datasetCode, ids) {
+    const filterState = state.filters[datasetCode];
+    const idSet = new Set(ids);
+    removeNodesRecursive(filterState.root, idSet);
+    filterState.selectedIds = filterState.selectedIds.filter((id) => !idSet.has(id));
+    ensureDatasetHasAtLeastOneRow(filterState.root, datasetCode);
+    renderFilters();
+  }
+
+  function removeNodesRecursive(groupNode, idSet) {
+    groupNode.children = groupNode.children.filter((child) => !idSet.has(child.id));
+    groupNode.children.forEach((child) => {
+      if (child.type === 'group') {
+        removeNodesRecursive(child, idSet);
+        if (!child.children.length) child.children = [createRow(child.datasetCode)];
       }
     });
   }
 
+  function ensureDatasetHasAtLeastOneRow(root, datasetCode) {
+    if (!root.children.length) {
+      root.children = [createRow(datasetCode)];
+    }
+  }
+
   function renderWeightsPanel() {
     if (!state.customPriorityRules.length) {
-      state.customPriorityRules = [createPriorityRule(state.mainDataset)];
+      state.customPriorityRules = [createPriorityRule('ogh')];
     }
     const visibleDatasets = activeFilterDatasets();
     $('weightsPanel').innerHTML = `
@@ -875,77 +952,45 @@
     return String(value || '').trim().toLowerCase();
   }
 
-  function evaluateRow(record, row, datasetCode) {
+  function conditionMatches(record, row, datasetCode) {
     const meta = getFieldMeta(datasetCode, row.field);
     const recordValue = record[row.field];
     const operator = row.operator;
     const value1 = row.value1;
     const value2 = row.value2;
 
-    if (operator === 'contains') return String(recordValue || '').toLowerCase().includes(String(value1 || '').toLowerCase());
-    if (operator === 'eq') return normalize(recordValue, meta?.type) === normalize(value1, meta?.type);
-    if (operator === 'gte') return comparable(recordValue, meta?.type) >= comparable(value1, meta?.type);
-    if (operator === 'lte') return comparable(recordValue, meta?.type) <= comparable(value1, meta?.type);
-    if (operator === 'between') {
+    let result = true;
+    if (operator === 'contains') result = String(recordValue || '').toLowerCase().includes(String(value1 || '').toLowerCase());
+    else if (operator === 'eq') result = normalize(recordValue, meta?.type) === normalize(value1, meta?.type);
+    else if (operator === 'gte') result = comparable(recordValue, meta?.type) >= comparable(value1, meta?.type);
+    else if (operator === 'lte') result = comparable(recordValue, meta?.type) <= comparable(value1, meta?.type);
+    else if (operator === 'between') {
       const current = comparable(recordValue, meta?.type);
-      return current >= comparable(value1, meta?.type) && current <= comparable(value2, meta?.type);
-    }
-    if (operator === 'in') {
+      result = current >= comparable(value1, meta?.type) && current <= comparable(value2, meta?.type);
+    } else if (operator === 'in') {
       const options = String(value1 || '').split(',').map((item) => item.trim().toLowerCase()).filter(Boolean);
-      return options.includes(String(recordValue || '').trim().toLowerCase());
+      result = options.includes(String(recordValue || '').trim().toLowerCase());
     }
-    return true;
+    return row.negate ? !result : result;
   }
 
-  function buildUnits(rows, datasetCode) {
-    const units = [];
-    for (let i = 0; i < rows.length; i += 1) {
-      const row = rows[i];
-      if (!hasValue(row)) continue;
-
-      if (row.clusterId) {
-        const clusterRows = [row];
-        while (i + 1 < rows.length && rows[i + 1].clusterId === row.clusterId) {
-          i += 1;
-          if (hasValue(rows[i])) clusterRows.push(rows[i]);
-        }
-        units.push({
-          join: clusterRows[0].join,
-          clusterId: row.clusterId,
-          mode: state.filters[datasetCode].clusterModes[row.clusterId] || 'OR',
-          rows: clusterRows
-        });
-      } else {
-        units.push({ join: row.join, rows: [row], mode: 'ROW' });
-      }
+  function evaluateNode(record, node, datasetCode) {
+    if (node.type === 'row') {
+      if (!hasValue(node)) return true;
+      return conditionMatches(record, node, datasetCode);
     }
-    return units;
-  }
 
-  function evaluateUnit(record, unit, datasetCode) {
-    if (unit.mode === 'ROW') {
-      return evaluateRow(record, unit.rows[0], datasetCode);
-    }
-    const rowResults = unit.rows.map((row) => evaluateRow(record, row, datasetCode));
-    if (unit.mode === 'AND') return rowResults.every(Boolean);
-    if (unit.mode === 'NOT') return !rowResults.some(Boolean);
-    return rowResults.some(Boolean);
+    const activeChildren = node.children.filter((child) => child.type === 'group' || hasValue(child));
+    if (!activeChildren.length) return true;
+    const childResults = activeChildren.map((child) => evaluateNode(record, child, datasetCode));
+    const combined = node.operator === 'OR' ? childResults.some(Boolean) : childResults.every(Boolean);
+    return node.negate ? !combined : combined;
   }
 
   function evaluateDataset(records, datasetCode) {
-    const group = state.filters[datasetCode];
-    if (!group || group.allData) return records.slice();
-    const units = buildUnits(group.rows, datasetCode);
-    if (!units.length) return records.slice();
-
-    return records.filter((record) => {
-      let result = evaluateUnit(record, units[0], datasetCode);
-      for (let i = 1; i < units.length; i += 1) {
-        const unitResult = evaluateUnit(record, units[i], datasetCode);
-        result = units[i].join === 'OR' ? (result || unitResult) : (result && unitResult);
-      }
-      return result;
-    });
+    const filterState = state.filters[datasetCode];
+    if (!filterState || filterState.allData) return records.slice();
+    return records.filter((record) => evaluateNode(record, filterState.root, datasetCode));
   }
 
   async function runAnalysis() {
@@ -1055,7 +1100,7 @@
         const sourceRecords = rule.datasetCode === 'ogh'
           ? [item]
           : compareMatches.filter((match) => match.datasetCode === rule.datasetCode);
-        const matched = sourceRecords.some((record) => evaluateRow(record, rule, rule.datasetCode));
+        const matched = sourceRecords.some((record) => conditionMatches(record, rule, rule.datasetCode));
         return matched ? sum + (Number(rule.coefficient || 0) / 100) : sum;
       }, 0);
       score += bonus;
@@ -1147,9 +1192,7 @@
   function renderMap() {
     if (!state.map) {
       state.map = L.map('map', { attributionControl: false });
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: ''
-      }).addTo(state.map);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(state.map);
     }
 
     if (state.mapLayer) state.map.removeLayer(state.mapLayer);
@@ -1167,9 +1210,7 @@
 
     setTimeout(() => state.map.invalidateSize(), 50);
 
-    if (!state.selectedObjectId && state.results.length) {
-      state.selectedObjectId = state.results[0].objectId;
-    }
+    if (!state.selectedObjectId && state.results.length) state.selectedObjectId = state.results[0].objectId;
     if (state.selectedObjectId) {
       const selected = state.results.find((item) => item.objectId === state.selectedObjectId);
       if (selected) highlightOnMap(selected, false);
@@ -1178,11 +1219,7 @@
 
   function styleByPriority(priorityLevel, selected = false) {
     const color = priorityLevel === 'high' ? '#15803d' : priorityLevel === 'medium' ? '#c97711' : '#d23b3b';
-    return {
-      color,
-      weight: selected ? 4 : 2,
-      fillOpacity: selected ? 0.28 : 0.18
-    };
+    return { color, weight: selected ? 4 : 2, fillOpacity: selected ? 0.28 : 0.18 };
   }
 
   function toFeature(item) {
