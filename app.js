@@ -12,6 +12,12 @@
   const DATASET_ORDER = ['ogh', 'sok', 'mr'];
   const STEPS = ['Инструмент', 'Наборы', 'Фильтры', 'Приоритизация', 'Результат'];
   const RESULT_GEOMETRY_KEY = 'Геометрия неблагоустроенной территории';
+  const EXTRA_RESULT_COLUMNS = ['Примерный объём работ', 'Примерная стоимость'];
+  const ASPHALT_WORK_TYPES = [
+    'Замена покрытия асфальтобетонного проезда в рамках благоустройства территории',
+    'Ремонт покрытия асфальтобетонного проезда в рамках благоустройства территории',
+    'Устройство покрытия асфальтобетонного проезда в рамках благоустройства территории'
+  ];
 
   const state = {
     tool: 'predictive',
@@ -92,6 +98,9 @@
     if (type === 'date') {
       return [['eq', 'Равно'], ['gte', 'После или равно'], ['lte', 'До или равно'], ['between', 'Между'], ['is_empty', 'Пусто'], ['is_not_empty', 'Не пусто']];
     }
+    if (type === 'enum_multi') {
+      return [['in', 'В списке'], ['not_in', 'Не в списке'], ['is_empty', 'Пусто'], ['is_not_empty', 'Не пусто']];
+    }
     if (type === 'boolean' || type === 'enum') {
       return [['eq', 'Равно'], ['neq', 'Не равно'], ['is_empty', 'Пусто'], ['is_not_empty', 'Не пусто']];
     }
@@ -148,6 +157,28 @@
     return [state.mainDataset, ...state.compareDatasets];
   }
 
+
+  function normalizeDatasetConfigs() {
+    const sokCols = datasetMeta('sok').columns || [];
+    const mrCols = datasetMeta('mr').columns || [];
+
+    const sokWork = sokCols.find((c) => c.code === 'Вид работ');
+    if (sokWork) {
+      sokWork.type = 'enum_multi';
+      sokWork.options = ASPHALT_WORK_TYPES.slice();
+    }
+    const mrWork = mrCols.find((c) => c.code === 'Вид работ');
+    if (mrWork) {
+      mrWork.type = 'enum_multi';
+      mrWork.options = ASPHALT_WORK_TYPES.slice();
+    }
+    const sokObject = sokCols.find((c) => c.code === 'Вид объекта благоустройства');
+    if (sokObject) {
+      sokObject.type = 'enum_multi';
+      sokObject.options = ['Объект дорожного хозяйства', 'Объекты комплексного благоустройства'];
+    }
+  }
+
   function resetState() {
     state.tool = 'predictive';
     state.mainDataset = 'ogh';
@@ -167,6 +198,7 @@
   }
 
   function init() {
+    normalizeDatasetConfigs();
     resetState();
     renderStepper();
     renderToolOptions();
@@ -264,7 +296,7 @@
         <input type="${radio ? 'radio' : 'checkbox'}" name="${radio ? 'mainDataset' : 'compareDataset'}" value="${code}" ${checked ? 'checked' : ''}>
         <div>
           <div class="dataset-option-title">${meta.title}</div>
-          <div class="dataset-option-description">${rowsCount} строк · реальные атрибуты из CSV</div>
+          
         </div>
       </label>
     `;
@@ -407,6 +439,14 @@
   }
 
   function singleInput(rowId, key, meta, datasetCode, value) {
+    if (meta.type === 'enum_multi') {
+      const selected = Array.isArray(value) ? value : String(value || '').split('||').filter(Boolean);
+      return `
+        <select multiple class="multi-select" data-row-value="${rowId}" data-value-key="${key}" data-code="${datasetCode}">
+          ${meta.options.map((option) => `<option value="${escapeHtml(option)}" ${selected.includes(option) ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
+        </select>
+      `;
+    }
     if (meta.type === 'enum') {
       return `
         <select data-row-value="${rowId}" data-value-key="${key}" data-code="${datasetCode}">
@@ -514,12 +554,19 @@
     });
 
     document.querySelectorAll('[data-row-value]').forEach((input) => {
-      input.addEventListener('input', (e) => {
+      const handler = (e) => {
         const code = e.target.getAttribute('data-code');
         const node = findNode(state.filters[code], e.target.getAttribute('data-row-value'));
         const key = e.target.getAttribute('data-value-key');
-        node[key] = fromInputDateIfNeeded(code, node.field, e.target.value);
-      });
+        const meta = fieldMeta(code, node.field);
+        if (meta.type === 'enum_multi') {
+          node[key] = Array.from(e.target.selectedOptions).map((opt) => opt.value);
+        } else {
+          node[key] = fromInputDateIfNeeded(code, node.field, e.target.value);
+        }
+      };
+      input.addEventListener('input', handler);
+      input.addEventListener('change', handler);
     });
 
     document.querySelectorAll('[data-remove-node]').forEach((button) => {
@@ -661,7 +708,7 @@
   function renderBaseWeights() {
     $('baseWeightsChips').innerHTML = [
       '<span class="chip">Результат таблицы и карта берутся из файла результата анализа</span>',
-      '<span class="chip">Порядок объектов можно менять через пользовательские правила</span>',
+      '<span class="chip">Блок приоритизации сохранён как дополнительная пользовательская настройка</span>',
       '<span class="chip">WKT геометрия отображается на карте</span>'
     ].join('');
   }
@@ -671,7 +718,7 @@
     $('weightsToggle').checked = state.useCustomWeights;
     $('weightsPanel').innerHTML = `
       <div class="priority-tools">
-        <div class="helper-inline">Правила применяются к файлу результата анализа и влияют на порядок строк и цвета на карте.</div>
+        <div class="helper-inline">Правила можно настраивать, но в этой версии они не влияют на итоговую таблицу и карту.</div>
         <button class="btn btn-secondary btn-small" id="addPriorityRuleBtn">Добавить правило</button>
       </div>
       <div class="stack compact-stack">
@@ -849,6 +896,16 @@
       if (operator === 'neq') return d1 && left.getTime() !== d1.getTime();
     }
 
+    if (type === 'enum_multi') {
+      const selected = Array.isArray(value1) ? value1 : String(value1 || '').split('||').filter(Boolean);
+      if (!selected.length) return false;
+      const left = raw.toLowerCase();
+      const matches = selected.some((item) => left === sanitizeText(item).toLowerCase());
+      if (operator === 'in') return matches;
+      if (operator === 'not_in') return !matches;
+      return false;
+    }
+
     const left = raw.toLowerCase();
     const right = sanitizeText(value1).toLowerCase();
     if (operator === 'eq') return left === right;
@@ -907,7 +964,7 @@
   }
 
   function finalizeRun() {
-    state.results = APP.result?.rows?.map((row, index) => ({ ...row, __index: index })) || [];
+    state.results = (APP.result?.rows || []).map((row, index) => ({ ...row, ...deriveEstimateFields(row), __index: index })) || [];
     recomputePriorities();
 
     $('loadingSection').classList.add('hidden');
@@ -923,29 +980,23 @@
     $('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function recomputePriorities() {
-    const rows = state.results.length ? state.results : (APP.result?.rows || []);
-    const scored = rows.map((row, idx) => {
-      let score = 0;
-      if (state.useCustomWeights) {
-        state.priorityRules.forEach((rule) => {
-          const meta = ruleFieldMeta(rule);
-          if (evaluateCondition(row, rule.field, rule.operator, rule.value1, rule.value2, meta.type)) {
-            score += Number(rule.coefficient) || 0;
-          }
-        });
-      }
-      return { ...row, __index: row.__index ?? idx, __score: score };
-    }).sort((a, b) => {
-      if (b.__score !== a.__score) return b.__score - a.__score;
-      return a.__index - b.__index;
-    });
 
-    const maxScore = Math.max(...scored.map((r) => r.__score), 0);
-    state.scoredResults = scored.map((row, idx) => ({
-      ...row,
-      __priorityBand: maxScore === 0 ? 'base' : row.__score >= maxScore * 0.66 ? 'high' : row.__score >= maxScore * 0.33 ? 'medium' : 'low'
-    }));
+  function deriveEstimateFields(row) {
+    const area = normalizeNumber(row['Площадь неблагоустроенной территории']) || normalizeNumber(row['Площадь']) || 0;
+    const volume = Math.round(area * 1.08);
+    const cost = Math.round(volume * 3200);
+    return {
+      'Примерный объём работ': volume,
+      'Примерная стоимость': cost
+    };
+  }
+
+  function recomputePriorities() {
+    const rows = state.results.length ? state.results : ((APP.result?.rows || []).map((row, index) => ({ ...row, ...deriveEstimateFields(row), __index: index })));
+    state.scoredResults = rows
+      .slice()
+      .sort((a, b) => (a.__index ?? 0) - (b.__index ?? 0))
+      .map((row) => ({ ...row, __score: 0, __priorityBand: 'base' }));
     if (state.results.length) {
       renderSummaryCards();
       renderResultsTable();
@@ -970,14 +1021,14 @@
   }
 
   function renderResultsTable() {
-    const columns = APP.result.columns || [];
-    $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th>${escapeHtml(col)}</th>`).join('')}</tr>`;
+    const columns = [...(APP.result.columns || []), ...EXTRA_RESULT_COLUMNS];
+    $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th class="${EXTRA_RESULT_COLUMNS.includes(col) ? 'numeric-cell' : ''}">${escapeHtml(col)}</th>`).join('')}</tr>`;
     $('resultsBody').innerHTML = state.scoredResults.map((row, index) => `
       <tr data-result-index="${index}" class="${state.activeRowIndex === index ? 'is-active' : ''}">
         ${columns.map((col) => {
           const value = row[col] ?? '';
-          const display = col === RESULT_GEOMETRY_KEY ? escapeHtml(String(value).slice(0, 120)) + '…' : escapeHtml(sanitizeText(value));
-          const cls = col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '';
+          const display = col === RESULT_GEOMETRY_KEY ? escapeHtml(String(value).slice(0, 120)) + '…' : formatResultCell(col, value);
+          const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', EXTRA_RESULT_COLUMNS.includes(col) ? 'numeric-cell' : ''].join(' ').trim();
           return `<td class="${cls}">${display}</td>`;
         }).join('')}
       </tr>
@@ -985,6 +1036,15 @@
     document.querySelectorAll('[data-result-index]').forEach((tr) => {
       tr.addEventListener('click', () => focusResult(Number(tr.getAttribute('data-result-index'))));
     });
+  }
+
+
+  function formatResultCell(column, value) {
+    if (value === null || value === undefined || value === '') return '';
+    if (EXTRA_RESULT_COLUMNS.includes(column)) {
+      return escapeHtml(new Intl.NumberFormat('ru-RU').format(Number(value || 0)));
+    }
+    return escapeHtml(sanitizeText(value));
   }
 
   function ensureMap() {
@@ -995,10 +1055,7 @@
 
   function renderMapLegend() {
     $('mapLegend').innerHTML = `
-      <div class="legend-item"><span class="legend-swatch" style="background:#2563eb"></span> Базовый</div>
-      <div class="legend-item"><span class="legend-swatch" style="background:#16a34a"></span> Низкий приоритет</div>
-      <div class="legend-item"><span class="legend-swatch" style="background:#d97706"></span> Средний приоритет</div>
-      <div class="legend-item"><span class="legend-swatch" style="background:#dc2626"></span> Высокий приоритет</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:#2563eb"></span> Объекты результата анализа</div>
     `;
   }
 
@@ -1060,7 +1117,7 @@
   function exportExcel() {
     const rows = state.scoredResults.map((row) => {
       const out = {};
-      (APP.result.columns || []).forEach((col) => { out[col] = row[col] ?? ''; });
+      [...(APP.result.columns || []), ...EXTRA_RESULT_COLUMNS].forEach((col) => { out[col] = row[col] ?? ''; });
       return out;
     });
     const ws = XLSX.utils.json_to_sheet(rows);
