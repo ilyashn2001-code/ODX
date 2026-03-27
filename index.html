@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-  <link rel="stylesheet" href="./styles_v2.css" />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <div class="page-shell">
@@ -113,18 +113,18 @@
         <div id="weightsPanel" class="weights-panel hidden"></div>
       </section>
 
-      <section class="card summary-setup-card">
+      <section class="card launch-card">
         <div class="card-head">
           <div>
-            <h2>Перед запуском</h2>
-            <p>Короткая сводка по выбранному сценарию. Это помогает быстро проверить, что именно будет отправлено в обработку.</p>
+            <h2>Шаг 5. Запуск расчёта</h2>
+            <p>После настройки наборов, фильтров и приоритизации запусти обработку. Карта результатов откроется ниже на всю доступную ширину.</p>
           </div>
         </div>
-        <div id="scenarioSummary" class="scenario-summary"></div>
         <div class="toolbar-line top-space">
           <button id="runAnalysisBtn" class="btn btn-primary">Запустить расчёт</button>
           <button id="resetBtn" class="btn btn-secondary">Сбросить всё</button>
         </div>
+        <div id="scenarioSummary" class="hidden"></div>
       </section>
     </section>
 
@@ -138,33 +138,14 @@
     <section id="resultsSection" class="stack hidden">
       <div id="resultSummaryCards" class="summary-grid"></div>
 
-      <section class="grid-result">
-        <div class="card">
-          <div class="card-head">
-            <div>
-              <h2>Карта</h2>
-              <p>Выберите строку в таблице, чтобы подсветить объект на карте.</p>
-            </div>
+      <section class="card full-map-card">
+        <div class="card-head">
+          <div>
+            <h2>Карта</h2>
+            <p>Выберите строку в таблице, чтобы подсветить объект на карте.</p>
           </div>
-          <div id="map"></div>
         </div>
-
-        <div class="card side-card">
-          <div class="card-head">
-            <div>
-              <h2>Применённая конфигурация</h2>
-              <p>Здесь кратко показано, какой сценарий, наборы и веса использовались при расчёте.</p>
-            </div>
-          </div>
-          <div class="subsection-title">Инструмент</div>
-          <div id="mirrorTool" class="mirror-box"></div>
-          <div class="subsection-title">Наборы</div>
-          <div id="mirrorDatasets" class="chips-row wrap"></div>
-          <div class="subsection-title">Фильтры</div>
-          <div id="mirrorFilters" class="stack compact-stack"></div>
-          <div class="subsection-title">Эффективные веса</div>
-          <div id="mirrorWeights" class="stack compact-stack"></div>
-        </div>
+        <div id="map"></div>
       </section>
 
       <section class="card">
@@ -206,6 +187,6 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="./data_fixed.js"></script>
-  <script src="./app_v2.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
