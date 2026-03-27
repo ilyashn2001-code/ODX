@@ -1,60 +1,211 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Центр геоаналитических инструментов</title>
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Центр геоаналитических инструментов</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="./styles_v2.css" />
 </head>
 <body>
+  <div class="page-shell">
+    <header class="hero-card">
+      <div>
+        <div class="eyebrow">МосДата · аналитический прототип</div>
+        <h1>Центр геоаналитических инструментов</h1>
+        <p class="subtitle">Единое пространство для выбора аналитических сценариев, настройки наборов данных, фильтрации и получения итогового реестра объектов.</p>
+      </div>
+      <div class="hero-badge-wrap">
+        <div class="hero-badge">
+          <span class="hero-badge-title">Активный сценарий</span>
+          <strong id="activeToolBadge">Не выбран</strong>
+        </div>
+      </div>
+    </header>
 
-<h1>Центр геоаналитических инструментов</h1>
+    <section class="stepper-card">
+      <div class="stepper" id="stepper"></div>
+    </section>
 
-<div class="block">
-<h2>1. Выбор инструмента</h2>
-<select id="tool">
-<option>Инструмент предиктивного анализа</option>
-<option>Оценка покрытия территорий</option>
-<option>Сценарное сопоставление</option>
-</select>
-</div>
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <h2>Шаг 1. Выбор инструмента</h2>
+          <p>Сначала выбери, какой сценарий нужно запустить. Для рабочего кейса используй инструмент предиктивного анализа.</p>
+        </div>
+      </div>
+      <div class="tool-picker">
+        <label class="field">
+          <span class="field-label">Что вы хотите сделать</span>
+          <select id="toolSelect"></select>
+        </label>
+        <div id="toolDescription" class="info-note"></div>
+      </div>
+      <div class="toolbar-line top-space">
+        <button id="goToDatasetsBtn" class="btn btn-primary">Далее</button>
+      </div>
+    </section>
 
-<div class="block">
-<h2>2. Наборы</h2>
+    <section id="datasetsSection" class="card hidden">
+      <div class="card-head">
+        <div>
+          <h2>Шаг 2. Выбор наборов данных</h2>
+          <p>Выберите основной анализируемый набор и один или несколько наборов для сравнения.</p>
+        </div>
+      </div>
 
-<div>
-<label>Анализируемый набор:</label>
-<select id="mainSet">
-<option value="odh">Набор ОДХ</option>
-<option value="sok">Благоустройство СОК</option>
-<option value="mr">Благоустройство МР</option>
-</select>
-</div>
+      <div class="dataset-grid">
+        <article class="dataset-card accent-main">
+          <div class="dataset-card-head">
+            <div>
+              <div class="dataset-badge">Основной</div>
+              <h3>Анализируемый набор</h3>
+              <p>Итоговый реестр строится именно по этому набору.</p>
+            </div>
+          </div>
+          <div id="mainDatasetPicker" class="stack"></div>
+        </article>
 
-<div>
-<label>Сравниваемые:</label>
-<div id="compareSets"></div>
-</div>
-</div>
+        <article class="dataset-card accent-compare">
+          <div class="dataset-card-head">
+            <div>
+              <div class="dataset-badge compare">Сравнение</div>
+              <h3>Наборы для сравнения</h3>
+              <p>Можно выбрать один или несколько наборов, которые будут отправлены в сервис пересечений.</p>
+            </div>
+          </div>
+          <div id="compareDatasetPicker" class="stack"></div>
+        </article>
+      </div>
 
-<div class="block">
-<h2>3. Фильтры</h2>
-<label><input type="checkbox" id="noFilter"> Без фильтрации</label>
-<div id="filters"></div>
-<button onclick="addRow()">Добавить условие</button>
-</div>
+      <div class="toolbar-line top-space">
+        <button id="goToFiltersBtn" class="btn btn-primary">Перейти к фильтрам</button>
+      </div>
+    </section>
 
-<div class="block">
-<h2>4. Приоритизация</h2>
-<button onclick="addPriority()">Добавить правило</button>
-<div id="priority"></div>
-</div>
+    <section id="filtersSection" class="stack hidden">
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Шаг 3. Критерии отбора данных</h2>
+            <p>Для каждого выбранного набора настраиваются собственные условия. Внутри группы действует связь И или ИЛИ, а сами группы внутри блока объединяются через ИЛИ.</p>
+          </div>
+          <button id="fillScenarioBtn" class="btn btn-secondary">Заполнить тестовый сценарий</button>
+        </div>
+        <div id="filtersBlocks" class="filters-blocks"></div>
+      </section>
 
-<div class="block">
-<h2>5. Результат</h2>
-<div id="map">[карта]</div>
-<table id="result"></table>
-</div>
+      <section class="card collapsible-card">
+        <div class="card-head">
+          <div>
+            <h2>Шаг 4. Приоритизация</h2>
+            <p>Необязательный этап. Если не включать ручную настройку, используются базовые коэффициенты.</p>
+          </div>
+          <label class="switch">
+            <input id="weightsToggle" type="checkbox">
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+        <div class="chips-row compact-chips" id="baseWeightsChips"></div>
+        <div id="weightsPanel" class="weights-panel hidden"></div>
+      </section>
 
-<script src="app.js"></script>
+      <section class="card summary-setup-card">
+        <div class="card-head">
+          <div>
+            <h2>Перед запуском</h2>
+            <p>Короткая сводка по выбранному сценарию. Это помогает быстро проверить, что именно будет отправлено в обработку.</p>
+          </div>
+        </div>
+        <div id="scenarioSummary" class="scenario-summary"></div>
+        <div class="toolbar-line top-space">
+          <button id="runAnalysisBtn" class="btn btn-primary">Запустить расчёт</button>
+          <button id="resetBtn" class="btn btn-secondary">Сбросить всё</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="loadingSection" class="card hidden">
+      <div class="loading-title">Выполняется обработка</div>
+      <div id="loadingText" class="helper-text">Подготовка данных...</div>
+      <div class="loading-bar"><div id="loadingFill" class="loading-fill"></div></div>
+      <div id="loadingPercent" class="loading-percent">0%</div>
+    </section>
+
+    <section id="resultsSection" class="stack hidden">
+      <div id="resultSummaryCards" class="summary-grid"></div>
+
+      <section class="grid-result">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>Карта</h2>
+              <p>Выберите строку в таблице, чтобы подсветить объект на карте.</p>
+            </div>
+          </div>
+          <div id="map"></div>
+        </div>
+
+        <div class="card side-card">
+          <div class="card-head">
+            <div>
+              <h2>Применённая конфигурация</h2>
+              <p>Здесь кратко показано, какой сценарий, наборы и веса использовались при расчёте.</p>
+            </div>
+          </div>
+          <div class="subsection-title">Инструмент</div>
+          <div id="mirrorTool" class="mirror-box"></div>
+          <div class="subsection-title">Наборы</div>
+          <div id="mirrorDatasets" class="chips-row wrap"></div>
+          <div class="subsection-title">Фильтры</div>
+          <div id="mirrorFilters" class="stack compact-stack"></div>
+          <div class="subsection-title">Эффективные веса</div>
+          <div id="mirrorWeights" class="stack compact-stack"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Итоговый реестр ОГХ</h2>
+            <p>Результат строится по анализируемому набору. Сравниваемые наборы влияют на расчёт и признаки включения.</p>
+          </div>
+          <button id="exportBtn" class="btn btn-secondary">Выгрузить в Excel</button>
+        </div>
+        <div class="table-wrap">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Объект</th>
+                <th>ID ОГХ</th>
+                <th>Округ</th>
+                <th>Район</th>
+                <th>Основание включения</th>
+                <th>Покрытие, %</th>
+                <th>Покрытая площадь</th>
+                <th>Непокрытая площадь</th>
+                <th>Рекомендуемый объём</th>
+                <th>Стоимость</th>
+                <th>Последний год работ</th>
+                <th>Давность</th>
+                <th>Приоритет</th>
+                <th>Карта</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="./data_fixed.js"></script>
+  <script src="./app_v2.js"></script>
 </body>
 </html>
