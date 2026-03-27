@@ -326,7 +326,7 @@
               <span class="role-pill ${code === state.mainDataset ? 'main' : 'compare'}">${role}</span>
               <h3>${meta.title}</h3>
             </div>
-            <p>Критерии строятся по атрибутам файла CSV.</p>
+            <p></p>
           </div>
           <span class="selection-chip">Выделено: ${selectedCount}</span>
         </div>
