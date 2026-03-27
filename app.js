@@ -13,6 +13,12 @@
   const STEPS = ['Инструмент', 'Наборы', 'Фильтры', 'Приоритизация', 'Результат'];
   const RESULT_GEOMETRY_KEY = 'Геометрия неблагоустроенной территории';
   const EXTRA_RESULT_COLUMNS = ['Примерный объём работ', 'Примерная стоимость'];
+  const BASE_WEIGHT_CHIPS = [
+    { label: 'Процент покрытия', value: '35%' },
+    { label: 'Давность ремонта', value: '25%' },
+    { label: 'Ориентировочная стоимость', value: '20%' },
+    { label: 'Рекомендуемый объём работ', value: '20%' }
+  ];
   const ASPHALT_WORK_TYPES = [
     'Замена покрытия асфальтобетонного проезда в рамках благоустройства территории',
     'Ремонт покрытия асфальтобетонного проезда в рамках благоустройства территории',
@@ -441,10 +447,23 @@
   function singleInput(rowId, key, meta, datasetCode, value) {
     if (meta.type === 'enum_multi') {
       const selected = Array.isArray(value) ? value : String(value || '').split('||').filter(Boolean);
+      const summary = selected.length ? `Выбрано: ${selected.length}` : 'Выберите значения';
       return `
-        <select multiple class="multi-select" data-row-value="${rowId}" data-value-key="${key}" data-code="${datasetCode}">
-          ${meta.options.map((option) => `<option value="${escapeHtml(option)}" ${selected.includes(option) ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
-        </select>
+        <div class="custom-multiselect">
+          <details data-multi-details="${rowId}" data-code="${datasetCode}" data-value-key="${key}">
+            <summary>${escapeHtml(summary)}</summary>
+            <div class="multi-dropdown">
+              <input class="multi-search" type="text" placeholder="Найти" data-multi-search="${rowId}" data-code="${datasetCode}">
+              <label class="multi-select-all">
+                <input type="checkbox" data-multi-select-all="${rowId}" data-code="${datasetCode}" ${selected.length === meta.options.length ? 'checked' : ''}>
+                <span>Выбрать все</span>
+              </label>
+              <div class="multi-options">
+                ${meta.options.map((option) => `<label class="multi-option" data-multi-option-label="${rowId}" data-search-text="${escapeAttr(option).toLowerCase()}"><input type="checkbox" value="${escapeHtml(option)}" data-multi-option="${rowId}" data-code="${datasetCode}" ${selected.includes(option) ? 'checked' : ''}><span>${escapeHtml(option)}</span></label>`).join('')}
+              </div>
+            </div>
+          </details>
+        </div>
       `;
     }
     if (meta.type === 'enum') {
@@ -558,15 +577,64 @@
         const code = e.target.getAttribute('data-code');
         const node = findNode(state.filters[code], e.target.getAttribute('data-row-value'));
         const key = e.target.getAttribute('data-value-key');
-        const meta = fieldMeta(code, node.field);
-        if (meta.type === 'enum_multi') {
-          node[key] = Array.from(e.target.selectedOptions).map((opt) => opt.value);
-        } else {
-          node[key] = fromInputDateIfNeeded(code, node.field, e.target.value);
-        }
+        node[key] = fromInputDateIfNeeded(code, node.field, e.target.value);
       };
       input.addEventListener('input', handler);
       input.addEventListener('change', handler);
+    });
+
+    document.querySelectorAll('[data-multi-option]').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const code = e.target.getAttribute('data-code');
+        const rowId = e.target.getAttribute('data-multi-option');
+        const node = findNode(state.filters[code], rowId);
+        if (!node) return;
+        const selected = Array.from(document.querySelectorAll(`[data-multi-option="${rowId}"]:checked`)).map((el) => el.value);
+        node.value1 = selected;
+        const all = document.querySelector(`[data-multi-select-all="${rowId}"]`);
+        const meta = fieldMeta(code, node.field);
+        if (all) all.checked = selected.length === (meta.options || []).length;
+        const summary = document.querySelector(`[data-multi-details="${rowId}"] summary`);
+        if (summary) summary.textContent = selected.length ? `Выбрано: ${selected.length}` : 'Выберите значения';
+      });
+    });
+
+    document.querySelectorAll('[data-multi-select-all]').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const code = e.target.getAttribute('data-code');
+        const rowId = e.target.getAttribute('data-multi-select-all');
+        const node = findNode(state.filters[code], rowId);
+        if (!node) return;
+        const meta = fieldMeta(code, node.field);
+        const values = e.target.checked ? (meta.options || []).slice() : [];
+        node.value1 = values;
+        document.querySelectorAll(`[data-multi-option="${rowId}"]`).forEach((el) => {
+          el.checked = e.target.checked;
+        });
+        const summary = document.querySelector(`[data-multi-details="${rowId}"] summary`);
+        if (summary) summary.textContent = values.length ? `Выбрано: ${values.length}` : 'Выберите значения';
+      });
+    });
+
+    document.querySelectorAll('[data-multi-search]').forEach((input) => {
+      input.addEventListener('input', (e) => {
+        const rowId = e.target.getAttribute('data-multi-search');
+        const q = e.target.value.trim().toLowerCase();
+        document.querySelectorAll(`[data-multi-option-label="${rowId}"]`).forEach((label) => {
+          const text = label.getAttribute('data-search-text') || '';
+          label.style.display = !q || text.includes(q) ? '' : 'none';
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-multi-details]').forEach((details) => {
+      details.addEventListener('toggle', () => {
+        if (details.open) {
+          document.querySelectorAll('[data-multi-details]').forEach((other) => {
+            if (other !== details) other.open = false;
+          });
+        }
+      });
     });
 
     document.querySelectorAll('[data-remove-node]').forEach((button) => {
@@ -706,11 +774,9 @@
   }
 
   function renderBaseWeights() {
-    $('baseWeightsChips').innerHTML = [
-      '<span class="chip">Результат таблицы и карта берутся из файла результата анализа</span>',
-      '<span class="chip">Блок приоритизации сохранён как дополнительная пользовательская настройка</span>',
-      '<span class="chip">WKT геометрия отображается на карте</span>'
-    ].join('');
+    $('baseWeightsChips').innerHTML = BASE_WEIGHT_CHIPS
+      .map((item) => `<span class="chip">${item.label} — ${item.value}</span>`)
+      .join('');
   }
 
   function renderPriorityPanel() {
@@ -718,7 +784,7 @@
     $('weightsToggle').checked = state.useCustomWeights;
     $('weightsPanel').innerHTML = `
       <div class="priority-tools">
-        <div class="helper-inline">Правила можно настраивать, но в этой версии они не влияют на итоговую таблицу и карту.</div>
+        <div class="helper-inline">Можно вернуть базовую схему приоритизации и при необходимости добавить свои правила: набор → атрибут → условие → коэффициент.</div>
         <button class="btn btn-secondary btn-small" id="addPriorityRuleBtn">Добавить правило</button>
       </div>
       <div class="stack compact-stack">
@@ -1006,9 +1072,9 @@
 
   function renderSummaryCards() {
     const cards = [
-      { title: 'Строк в наборе ОГХ', value: datasetMeta('ogh').rows.length, note: `Совпало по фильтрам: ${matchedCount('ogh')}` },
-      { title: 'Строк в наборе СОК', value: datasetMeta('sok').rows.length, note: `Совпало по фильтрам: ${matchedCount('sok')}` },
-      { title: 'Строк в наборе МР', value: datasetMeta('mr').rows.length, note: `Совпало по фильтрам: ${matchedCount('mr')}` },
+            { title: 'Строк в наборе ОГХ', value: datasetMeta('ogh').rows.length, note: '' },
+      { title: 'Строк в наборе СОК', value: datasetMeta('sok').rows.length, note: '' },
+      { title: 'Строк в наборе МР', value: datasetMeta('mr').rows.length, note: '' },
       { title: 'Строк в результате', value: state.scoredResults.length, note: 'Все строки и атрибуты из файла результата анализа' }
     ];
     $('resultSummaryCards').innerHTML = cards.map((card) => `
