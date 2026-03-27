@@ -1,3 +1,4 @@
+[README.md](https://github.com/user-attachments/files/26301357/README.md)
 
 [README.md](https://github.com/user-attachments/files/26238069/README.md)
 # Предиктивный анализ различных наборов
