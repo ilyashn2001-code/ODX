@@ -169,9 +169,12 @@
         <div class="card-head">
           <div>
             <h2>Приоритизация результата</h2>
-            <p>Системные коэффициенты и кастомные правила работают только по атрибутам справочника результата.</p>
+            <p>Системные коэффициенты заданы заранее. По переключателю можно включить их редактирование и добавить свои правила.</p>
           </div>
-          <button id="newAnalysisBtn" class="btn btn-secondary">Новый анализ</button>
+          <div class="toolbar-line">
+            <label class="radio-line compact-toggle"><input type="checkbox" id="priorityEditToggle"> Редактировать</label>
+            <button id="newAnalysisBtn" class="btn btn-secondary">Новый анализ</button>
+          </div>
         </div>
         <div class="chips-row compact-chips" id="baseWeightsChips"></div>
         <div class="weights-panel" id="weightsPanel"></div>
