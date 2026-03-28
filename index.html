@@ -16,7 +16,7 @@
       <div>
         <div class="eyebrow">МосДата · аналитический прототип</div>
         <h1>Центр геоаналитических инструментов</h1>
-        <p class="subtitle">Сценарий выбора инструмента, настройки наборов, задания критериев и просмотра итогового реестра по реальным атрибутам из CSV.</p>
+        <p class="subtitle">Единое пространство для выбора инструмента, настройки параметров анализа и просмотра итогового реестра.</p>
       </div>
       <div class="hero-badge-wrap">
         <div class="hero-badge">
@@ -34,15 +34,13 @@
       <div class="card-head">
         <div>
           <h2>Шаг 1. Выбор инструмента</h2>
-          <p>Сначала выберите сценарий. Для рабочего кейса используйте инструмент предиктивного анализа.</p>
         </div>
       </div>
-      <div class="tool-picker">
+      <div class="tool-picker compact-one">
         <label class="field">
           <span class="field-label">Что вы хотите сделать</span>
           <select id="toolSelect"></select>
         </label>
-        <div id="toolDescription" class="info-note"></div>
       </div>
       <div class="toolbar-line top-space">
         <button id="goToDatasetsBtn" class="btn btn-primary">Далее</button>
@@ -53,33 +51,29 @@
       <div class="card-head">
         <div>
           <h2>Шаг 2. Выбор наборов данных</h2>
-          <p>Выберите основной анализируемый набор и один или несколько наборов для сравнения.</p>
+          <p>Выберите анализируемый набор и один или несколько наборов для сравнения.</p>
         </div>
       </div>
       <div class="dataset-grid">
-        <article class="dataset-card accent-main">
+        <article class="dataset-card">
           <div class="dataset-card-head">
             <div>
               <div class="dataset-badge">Основной</div>
               <h3>Анализируемый набор</h3>
-              <p></p>
             </div>
           </div>
-          <div id="mainDatasetPicker" class="stack"></div>
+          <div id="mainDatasetPicker"></div>
         </article>
-
-        <article class="dataset-card accent-compare">
+        <article class="dataset-card">
           <div class="dataset-card-head">
             <div>
               <div class="dataset-badge compare">Сравнение</div>
               <h3>Наборы для сравнения</h3>
-              <p></p>
             </div>
           </div>
-          <div id="compareDatasetPicker" class="stack"></div>
+          <div id="compareDatasetPicker"></div>
         </article>
       </div>
-
       <div class="toolbar-line top-space">
         <button id="goToFiltersBtn" class="btn btn-primary">Перейти к критериям</button>
       </div>
@@ -90,36 +84,74 @@
         <div class="card-head">
           <div>
             <h2>Шаг 3. Критерии отбора данных</h2>
-            <p>Строки и группы можно выделять и объединять во вложенные блоки.</p>
+            <p>Для каждого выбранного набора задаются собственные критерии отбора.</p>
           </div>
         </div>
         <div id="filtersBlocks" class="filters-blocks"></div>
-      </section>
-
-      <section id="priorityCard" class="card collapsible-card">
-        <div class="card-head">
-          <div>
-            <h2>Шаг 4. Приоритизация</h2>
-            <p>Настройте базовые веса и при необходимости добавьте собственные правила. В этой версии блок сохранён как пользовательская настройка и не влияет на итоговую таблицу.</p>
-          </div>
-          <label class="switch">
-            <input id="weightsToggle" type="checkbox">
-            <span class="switch-ui"></span>
-          </label>
+        <div class="toolbar-line top-space">
+          <button id="goToParametersBtn" class="btn btn-primary">Далее</button>
         </div>
-        <div class="chips-row compact-chips" id="baseWeightsChips"></div>
-        <div id="weightsPanel" class="weights-panel hidden"></div>
       </section>
 
-      <section id="launchCard" class="card launch-card">
+      <section id="parametersCard" class="card hidden">
         <div class="card-head">
           <div>
-            <h2>Шаг 5. Запуск расчёта</h2>
-            <p>Фильтрация подготавливает пользовательский сценарий, а таблица результата и карта строятся по файлу результата анализа.</p>
+            <h2>Шаг 4. Параметры отбора результата</h2>
+            <p>Настройте срок службы, порог непокрытой площади и диапазоны по объёму и стоимости, чтобы точнее задать сценарий анализа.</p>
+          </div>
+        </div>
+        <div class="parameter-grid">
+          <div class="parameter-box">
+            <h3>Нормативный срок службы</h3>
+            <label class="radio-line"><input type="radio" name="serviceLifeMode" value="normative" checked> По утверждённой нормативке</label>
+            <label class="radio-line"><input type="radio" name="serviceLifeMode" value="single"> Один срок для всех работ</label>
+            <label class="radio-line"><input type="radio" name="serviceLifeMode" value="mixed"> Гибкая настройка по видам работ</label>
+            <div id="serviceLifeSingleBox" class="hidden top-space">
+              <label class="field">
+                <span class="field-label">Срок для всех работ</span>
+                <select id="serviceLifeSingle">
+                  <option value="5">5 лет</option>
+                  <option value="10">10 лет</option>
+                  <option value="15">15 лет</option>
+                </select>
+              </label>
+            </div>
+            <div id="serviceLifeMixedBox" class="stack hidden top-space"></div>
+          </div>
+
+          <div class="parameter-box">
+            <h3>Процент непокрытой площади</h3>
+            <label class="radio-line"><input type="radio" name="uncoveredMode" value="single" checked> Один фильтр для всех</label>
+            <label class="radio-line"><input type="radio" name="uncoveredMode" value="mixed"> Разные значения по видам работ</label>
+            <div id="uncoveredSingleBox" class="top-space"></div>
+            <div id="uncoveredMixedBox" class="stack hidden top-space"></div>
+          </div>
+
+          <div class="parameter-box">
+            <h3>Примерный объём работ</h3>
+            <div id="volumeFilterBox"></div>
+          </div>
+
+          <div class="parameter-box">
+            <h3>Примерная стоимость</h3>
+            <div id="costFilterBox"></div>
           </div>
         </div>
         <div class="toolbar-line top-space">
-          <button id="runAnalysisBtn" class="btn btn-primary">Запустить расчёт</button>
+          <button id="goToReviewBtn" class="btn btn-primary">Далее</button>
+        </div>
+      </section>
+
+      <section id="reviewCard" class="card hidden">
+        <div class="card-head">
+          <div>
+            <h2>Шаг 5. Проверка конфигурации</h2>
+            <p>Проверьте выбранные шаги, при необходимости вернитесь к нужному разделу и запустите получение анализа.</p>
+          </div>
+        </div>
+        <div id="reviewSummary" class="review-grid"></div>
+        <div class="toolbar-line top-space">
+          <button id="runAnalysisBtn" class="btn btn-primary">Получить анализ</button>
           <button id="resetBtn" class="btn btn-secondary">Сбросить всё</button>
         </div>
       </section>
@@ -133,15 +165,26 @@
     </section>
 
     <section id="resultsSection" class="stack hidden">
+      <section id="resultPriorityCard" class="card">
+        <div class="card-head">
+          <div>
+            <h2>Приоритизация результата</h2>
+            <p>Системные коэффициенты и кастомные правила работают только по атрибутам справочника результата.</p>
+          </div>
+          <button id="newAnalysisBtn" class="btn btn-secondary">Новый анализ</button>
+        </div>
+        <div class="chips-row compact-chips" id="baseWeightsChips"></div>
+        <div class="weights-panel" id="weightsPanel"></div>
+      </section>
+
       <div id="resultSummaryCards" class="summary-grid"></div>
 
       <section class="card full-map-card">
         <div class="card-head">
           <div>
             <h2>Карта</h2>
-            <p>На карте отображается WKT-геометрия из файла результата анализа. Нажмите на строку таблицы, чтобы отцентрироваться по объекту.</p>
+            <p>Нажмите на строку в таблице, чтобы отцентрироваться по геометрии объекта.</p>
           </div>
-          <button id="newAnalysisBtn" class="btn btn-secondary">Новый анализ</button>
         </div>
         <div class="map-wrap">
           <div id="mapLegend" class="map-legend"></div>
@@ -153,24 +196,20 @@
         <div class="card-head">
           <div>
             <h2>Итоговый результат анализа</h2>
-            <p>Таблица фиксирована по ширине контейнера, а лишние колонки просматриваются через горизонтальный скролл.</p>
           </div>
           <button id="exportBtn" class="btn btn-secondary">Выгрузить в Excel</button>
         </div>
-        <div class="table-wrap">
-          <table class="results-table">
-            <thead id="resultsHead"></thead>
-            <tbody id="resultsBody"></tbody>
-          </table>
+        <div class="table-scroll-shell">
+          <div class="table-wrap">
+            <table class="results-table" id="resultsTable"></table>
+          </div>
         </div>
       </section>
     </section>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script src="https://unpkg.com/wellknown@0.5.0/wellknown.js"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="./data_fixed.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="./app.js"></script>
 </body>
 </html>
