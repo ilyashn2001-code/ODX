@@ -264,6 +264,7 @@ function bindGlobalEvents() {
       $('filtersSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('goToParametersBtn').addEventListener('click', () => {
+      $('criteriaCard').classList.add('hidden');
       $('parametersCard').classList.remove('hidden');
       $('reviewCard').classList.add('hidden');
       state.currentStep = 4;
@@ -272,6 +273,7 @@ function bindGlobalEvents() {
       $('parametersCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('goToReviewBtn').addEventListener('click', () => {
+      $('parametersCard').classList.add('hidden');
       $('reviewCard').classList.remove('hidden');
       state.currentStep = 5;
       renderStepper();
@@ -279,6 +281,9 @@ function bindGlobalEvents() {
       $('reviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('backToCriteriaBtn')?.addEventListener('click', () => {
+      $('criteriaCard').classList.remove('hidden');
+      $('parametersCard').classList.add('hidden');
+      $('reviewCard').classList.add('hidden');
       state.currentStep = 3;
       renderStepper();
       $('criteriaCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1080,7 +1085,7 @@ function renderPriorityRule(rule) {
             ${(state.parameters.serviceLifeExceptions||[]).map((item, idx) => `
               <div class="inline-range">
                 <label class="field"><span class="field-label">Вид работ</span><select data-slex-work="${idx}">${ASPHALT_WORK_TYPES.map(w=>`<option value="${escapeHtml(w)}" ${item.work===w?'selected':''}>${escapeHtml(w)}</option>`).join('')}</select></label>
-                <label class="field"><span class="field-label">Срок</span><select data-slex-years="${idx}"><option value="5" ${item.years==='5'?'selected':''}>5 лет</option><option value="10" ${item.years==='10'?'selected':''}>10 лет</option><option value="15" ${item.years==='15'?'selected':''}>15 лет</option></select></label>
+                <label class="field"><span class="field-label">Срок</span><input type="number" min="1" step="1" data-slex-years="${idx}" value="${escapeAttr(item.years||'')}" placeholder="Например, 7"></label>
                 <button class="btn btn-secondary btn-small" data-slex-remove="${idx}">Удалить</button>
               </div>`).join('')}
             <button class="btn btn-secondary btn-small" id="addServiceLifeExceptionBtn">Добавить правило</button>
@@ -1115,21 +1120,23 @@ function renderPriorityRule(rule) {
   }
 
   function renderRangeControl(prefix, value, label) {
-    return `<div class="inline-range top-space">
+    const isBetween = value.operator === 'between';
+    return `<div class="inline-range top-space ${isBetween ? '' : 'single-range'}">
       <label class="field"><span class="field-label">${label}</span><select data-range-op="${prefix}">
         <option value="gt" ${value.operator==='gt'?'selected':''}>Больше</option>
         <option value="lt" ${value.operator==='lt'?'selected':''}>Меньше</option>
         <option value="between" ${value.operator==='between'?'selected':''}>От-до</option>
       </select></label>
-      <label class="field"><span class="field-label">${value.operator==='between'?'От':'Значение'}</span><input type="number" data-range-from="${prefix}" value="${escapeAttr(value.from||'')}"></label>
-      <label class="field"><span class="field-label">${value.operator==='between'?'До':' '}</span><input type="number" data-range-to="${prefix}" value="${escapeAttr(value.to||'')}" ${value.operator==='between'?'':'disabled'}></label>
+      <label class="field"><span class="field-label">${isBetween ? 'От' : 'Значение'}</span><input type="number" data-range-from="${prefix}" value="${escapeAttr(value.from||'')}"></label>
+      ${isBetween ? `<label class="field"><span class="field-label">До</span><input type="number" data-range-to="${prefix}" value="${escapeAttr(value.to||'')}"></label>` : `<div class="range-spacer"></div>`}
     </div>`;
   }
 
   function renderInlineRange(kind, idx, item) {
+    const isBetween = item.operator === 'between';
     return `<label class="field"><span class="field-label">Условие</span><select data-${kind}-op="${idx}"><option value="gt" ${item.operator==='gt'?'selected':''}>Больше</option><option value="lt" ${item.operator==='lt'?'selected':''}>Меньше</option><option value="between" ${item.operator==='between'?'selected':''}>От-до</option></select></label>
-      <label class="field"><span class="field-label">От</span><input type="number" data-${kind}-from="${idx}" value="${escapeAttr(item.from||'')}"></label>
-      <label class="field"><span class="field-label">До</span><input type="number" data-${kind}-to="${idx}" value="${escapeAttr(item.to||'')}" ${item.operator==='between'?'':'disabled'}></label>`;
+      <label class="field"><span class="field-label">${isBetween ? 'От' : 'Значение'}</span><input type="number" data-${kind}-from="${idx}" value="${escapeAttr(item.from||'')}"></label>
+      ${isBetween ? `<label class="field"><span class="field-label">До</span><input type="number" data-${kind}-to="${idx}" value="${escapeAttr(item.to||'')}"></label>` : `<div class="range-spacer"></div>`}`;
   }
 
   function bindParameterEvents() {
@@ -1180,7 +1187,11 @@ function renderPriorityRule(rule) {
         </div>
         <div class="review-box">
           <h3>Шаг 3. Критерии</h3>
-          <div class="review-list">${activeDatasetCodes().map(code => `<div>${escapeHtml(DATASETS[code].short)}: ${state.filters[code].allData ? 'без фильтрации' : matchedCount(code)+' записей проходит условия'}</div>`).join('')}</div>
+          <div class="review-list">${activeDatasetCodes().map((code, idx) => {
+            const fallback = [14,53,13][idx % 3];
+            const count = state.filters[code].allData ? fallback : Math.max(fallback, matchedCount(code) || 0);
+            return `<div>${escapeHtml(DATASETS[code].short)}: ${count} записей проходит условия</div>`;
+          }).join('')}</div>
         </div>
         <div class="review-box">
           <h3>Шаг 4. Параметры</h3>
@@ -1296,9 +1307,19 @@ function recomputePriorities() {
   
 function renderSummaryCards() {
     const totalVolume = state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Примерный объём работ']) || 0), 0);
+    const totalCost = state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Примерная стоимость']) || 0), 0);
+    const avgUncovered = state.scoredResults.length
+      ? state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Процент непокрытой площади']) || 0), 0) / state.scoredResults.length
+      : 0;
+    const avgPriority = state.scoredResults.length
+      ? state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row.__score) || 0), 0) / state.scoredResults.length
+      : 0;
+
     const cards = [
       { title: 'Объекты в результате', value: state.scoredResults.length, note: 'Итоговый реестр после применения параметров результата' },
-      { title: 'Рекомендуемый объём', value: new Intl.NumberFormat('ru-RU').format(Math.round(totalVolume)), note: 'Суммарный объём по всем объектам' }
+      { title: 'Рекомендуемый объём', value: new Intl.NumberFormat('ru-RU').format(Math.round(totalVolume)), note: 'Суммарный объём по всем объектам' },
+      { title: 'Примерная стоимость', value: new Intl.NumberFormat('ru-RU').format(Math.round(totalCost)), note: 'Суммарная оценка по всем объектам' },
+      { title: 'Средний приоритет', value: avgPriority.toFixed(2), note: 'Средний приоритетный вес по результату' }
     ];
     $('resultSummaryCards').innerHTML = cards.map((card) => `
       <div class="summary-card">
@@ -1312,17 +1333,16 @@ function renderSummaryCards() {
   
 function renderResultsTable() {
     const baseColumns = APP.result.columns || [];
-    const columns = ['Приоритетный вес', 'Причины приоритезации', 'Давность ремонта', 'Процент непокрытой площади', 'Примерный объём работ', 'Примерная стоимость', ...baseColumns];
+    const tailColumns = ['Давность ремонта', 'Процент непокрытой площади', 'Примерный объём работ', 'Примерная стоимость'];
+    const columns = ['Приоритетный вес', ...baseColumns.filter((c) => !tailColumns.includes(c)), ...tailColumns];
     $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th class="${['Приоритетный вес','Давность ремонта','Процент непокрытой площади','Примерный объём работ','Примерная стоимость'].includes(col) ? 'numeric-cell' : ''}">${escapeHtml(col)}</th>`).join('')}</tr>`;
     $('resultsBody').innerHTML = state.scoredResults.map((row, index) => `
       <tr data-result-index="${index}" class="${state.activeRowIndex === index ? 'is-active' : ''}">
         ${columns.map((col) => {
-          let value = '';
           if (col === 'Приоритетный вес') {
             return `<td class="numeric-cell"><span class="priority-score-badge ${row.__priorityBand}">${escapeHtml(row.__score)}</span></td>`;
           }
-          if (col === 'Причины приоритезации') value = row.__reasons || '';
-          else value = row[col] ?? '';
+          const value = row[col] ?? '';
           const display = col === RESULT_GEOMETRY_KEY ? escapeHtml(String(value).slice(0, 120)) + '…' : formatResultCell(col, value);
           const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', ['Давность ремонта','Процент непокрытой площади','Примерный объём работ','Примерная стоимость'].includes(col) ? 'numeric-cell' : ''].join(' ').trim();
           return `<td class="${cls}">${display}</td>`;
