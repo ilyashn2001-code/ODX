@@ -3,94 +3,114 @@
   const APP = window.APP_DATA || {};
   const $ = (id) => document.getElementById(id);
 
+  const TOOL_OPTIONS = APP.toolOptions || [];
   const DATASETS = {
     ogh: { code: 'ogh', title: APP.datasets?.ogh?.title || 'Набор ОГХ', short: 'ОГХ' },
     sok: { code: 'sok', title: APP.datasets?.sok?.title || 'Набор благоустройства (СОК)', short: 'СОК' },
-    mr:  { code: 'mr',  title: APP.datasets?.mr?.title  || 'Набор благоустройства (МР)', short: 'МР' }
+    mr: { code: 'mr', title: APP.datasets?.mr?.title || 'Набор благоустройства (МР)', short: 'МР' }
   };
   const DATASET_ORDER = ['ogh', 'sok', 'mr'];
-  const STEPS = ['Инструмент', 'Наборы', 'Критерии', 'Параметры', 'Проверка'];
+  const STEPS = ['Инструмент', 'Наборы', 'Фильтры', 'Приоритизация', 'Результат'];
   const RESULT_GEOMETRY_KEY = 'Геометрия неблагоустроенной территории';
+  const EXTRA_RESULT_COLUMNS = ['Примерный объём работ', 'Примерная стоимость'];
+  const BASE_WEIGHT_CHIPS = [
+    { label: 'Процент покрытия', value: '35%' },
+    { label: 'Давность ремонта', value: '25%' },
+    { label: 'Ориентировочная стоимость', value: '20%' },
+    { label: 'Рекомендуемый объём работ', value: '20%' }
+  ];
+  const ASPHALT_WORK_TYPES = [
+    'Замена покрытия асфальтобетонного проезда в рамках благоустройства территории',
+    'Ремонт покрытия асфальтобетонного проезда в рамках благоустройства территории',
+    'Устройство покрытия асфальтобетонного проезда в рамках благоустройства территории'
+  ];
 
   const state = {
-    tool: APP.toolOptions?.[0]?.code || 'predictive',
+    tool: 'predictive',
     mainDataset: 'ogh',
     compareDatasets: ['sok', 'mr'],
-    criteria: {},
-    parameters: {
-      serviceLifeMode: 'normative',
-      serviceLifeSingle: '5',
-      serviceLifeMixed: {},
-      uncoveredMode: 'single',
-      uncoveredSingle: { operator: 'gt', from: '15', to: '' },
-      uncoveredMixed: {},
-      volume: { operator: 'between', from: '', to: '' },
-      cost: { operator: 'between', from: '', to: '' }
-    },
-    baseWeights: { ...(APP.baseWeights || {}) },
-    customPriorityRules: [],
-    currentStep: 1,
+    filters: {},
+    selections: {},
+    useCustomWeights: false,
+    priorityRules: [],
     results: [],
-    activeRowIndex: null,
+    scoredResults: [],
+    currentStep: 1,
     map: null,
-    layers: []
+    mapLayers: [],
+    activeRowIndex: null
   };
 
+  function cryptoId() {
+    return Math.random().toString(36).slice(2, 10);
+  }
+
   function datasetMeta(code) {
-    return APP.datasets?.[code] || { title: DATASETS[code]?.title || code, columns: [], rows: [] };
+    return APP.datasets?.[code] || { title: DATASETS[code].title, columns: [], rows: [] };
   }
 
-  function getResultColumns() {
-    return (APP.result?.columns || []).slice();
-  }
-
-  function defaultRow(datasetCode) {
-    const meta = datasetMeta(datasetCode);
-    const first = meta.columns[0];
+  function inferDefaultRow(code) {
+    const firstField = datasetMeta(code).columns[0];
     return {
       id: cryptoId(),
-      field: first?.code || '',
-      operator: defaultOperator(first?.type || 'text'),
+      type: 'row',
+      selected: false,
+      negated: false,
+      field: firstField?.code || '',
+      operator: defaultOperator(firstField?.type || 'text'),
       value1: '',
-      value2: '',
-      negated: false
+      value2: ''
     };
   }
 
-  function createPriorityRule() {
-    const fields = resultFieldOptions();
-    const first = fields[0];
+  function createGroup(code, depth = 0) {
     return {
       id: cryptoId(),
-      field: first?.code || '',
-      operator: defaultOperator(first?.type || 'text'),
+      type: 'group',
+      datasetCode: code,
+      selected: false,
+      negated: false,
+      operator: 'AND',
+      allData: false,
+      depth,
+      children: [inferDefaultRow(code)]
+    };
+  }
+
+  function createPriorityRule(datasetCode = 'ogh') {
+    const columns = resultColumnsForRule(datasetCode);
+    return {
+      id: cryptoId(),
+      datasetCode,
+      field: columns[0]?.code || '',
+      operator: defaultOperator(columns[0]?.type || 'text'),
       value1: '',
       value2: '',
       coefficient: 10
     };
   }
 
-  function initState() {
-    DATASET_ORDER.forEach((code) => {
-      state.criteria[code] = { allData: false, rows: [defaultRow(code)] };
-    });
-    APP.asphaltWorkTypes?.forEach((work) => {
-      state.parameters.serviceLifeMixed[work] = '5';
-      state.parameters.uncoveredMixed[work] = { operator: 'gt', from: '15', to: '' };
-    });
-    if (!state.customPriorityRules.length) state.customPriorityRules = [createPriorityRule()];
+  function defaultOperator(type) {
+    if (type === 'number' || type === 'date') return 'eq';
+    if (type === 'boolean') return 'eq';
+    if (type === 'enum') return 'eq';
+    return 'contains';
   }
 
-  function cryptoId() {
-    return Math.random().toString(36).slice(2, 10);
-  }
-
-  function availableCompareDatasets() {
-    return DATASET_ORDER.filter((c) => c !== state.mainDataset);
-  }
-
-  function activeDatasetCodes() {
-    return [state.mainDataset, ...state.compareDatasets.filter(Boolean)];
+  function operatorsFor(type) {
+    if (type === 'number') {
+      return [['eq', 'Равно'], ['gt', 'Больше'], ['gte', 'Больше или равно'], ['lt', 'Меньше'], ['lte', 'Меньше или равно'], ['between', 'Между'], ['is_empty', 'Пусто'], ['is_not_empty', 'Не пусто']];
+    }
+    if (type === 'date') {
+      return [['eq', 'Равно'], ['gte', 'После или равно'], ['lte', 'До или равно'], ['between', 'Между'], ['is_empty', 'Пусто'], ['is_not_empty', 'Не пусто']];
+    }
+    if (type === 'enum_multi') {
+      return [['in', 'В списке'], ['not_in', 'Не в списке'], ['is_empty', 'Пусто'], ['is_not_empty', 'Не пусто']];
+    }
+    if (type === 'boolean' || type === 'enum') {
+      return [['eq', 'Равно'], ['neq', 'Не равно'], ['is_empty', 'Пусто'], ['is_not_empty', 'Не пусто']];
+    }
+    return [['contains', 'Содержит'], ['not_contains', 'Не содержит'], ['eq', 'Равно'], ['neq', 'Не равно'], ['is_empty', 'Пусто'], ['is_not_empty', 'Не пусто']];
   }
 
   function sanitizeText(value) {
@@ -99,7 +119,6 @@
 
   function normalizeNumber(value) {
     const prepared = sanitizeText(value).replace(/\s/g, '').replace(',', '.');
-    if (!prepared) return null;
     const parsed = parseFloat(prepared);
     return Number.isFinite(parsed) ? parsed : null;
   }
@@ -112,1000 +131,1133 @@
   }
 
   function fieldMeta(datasetCode, fieldCode) {
-    return datasetMeta(datasetCode).columns.find((col) => col.code === fieldCode) || datasetMeta(datasetCode).columns[0];
+    const meta = datasetMeta(datasetCode).columns.find((col) => col.code === fieldCode);
+    return meta || datasetMeta(datasetCode).columns[0];
   }
 
-  function resultFieldOptions() {
-    return getResultColumns().map((name) => ({ code: name, label: name, type: inferResultColumnType(name) }));
+  function resultColumnsForRule(datasetCode) {
+    if (datasetCode === 'result') {
+      return APP.result.columns.map((name) => ({ code: name, label: name, type: inferResultColumnType(name) }));
+    }
+    return datasetMeta(datasetCode).columns;
   }
 
   function inferResultColumnType(name) {
-    const values = (APP.result?.rows || []).map((row) => row[name]).filter((v) => sanitizeText(v) !== '');
+    const values = (APP.result?.rows || []).map((row) => row[name]).filter(Boolean);
     if (!values.length) return 'text';
-    if (values.every((v) => normalizeNumber(v) !== null)) return 'number';
-    if (values.every((v) => normalizeDate(v))) return 'date';
+    const boolish = values.every((v) => ['True', 'False', 'true', 'false'].includes(String(v)));
+    if (boolish) return 'boolean';
+    const numish = values.every((v) => normalizeNumber(v) !== null);
+    if (numish) return 'number';
+    const dateish = values.every((v) => normalizeDate(v));
+    if (dateish) return 'date';
     if (new Set(values).size <= 12) return 'enum';
     return 'text';
   }
 
-  function defaultOperator(type) {
-    if (type === 'number') return 'eq';
-    if (type === 'date') return 'eq';
-    if (type === 'enum' || type === 'enum_multi') return 'in';
-    return 'contains';
+  function availableCompareDatasets() {
+    return DATASET_ORDER.slice();
   }
 
-  function operatorsFor(type) {
-    if (type === 'number') return [['eq', 'Равно'], ['gt', 'Больше'], ['gte', 'Больше или равно'], ['lt', 'Меньше'], ['lte', 'Меньше или равно'], ['between', 'Между']];
-    if (type === 'date') return [['eq', 'Равно'], ['gte', 'После или равно'], ['lte', 'До или равно'], ['between', 'Между']];
-    if (type === 'enum_multi') return [['in', 'В списке'], ['not_in', 'Не в списке']];
-    if (type === 'enum') return [['in', 'В списке'], ['not_in', 'Не в списке'], ['eq', 'Равно'], ['neq', 'Не равно']];
-    return [['contains', 'Содержит'], ['not_contains', 'Не содержит'], ['eq', 'Равно'], ['neq', 'Не равно']];
+  function activeDatasetCodes() {
+    return [state.mainDataset, ...state.compareDatasets];
+  }
+
+
+  function normalizeDatasetConfigs() {
+    const sokCols = datasetMeta('sok').columns || [];
+    const mrCols = datasetMeta('mr').columns || [];
+
+    const sokWork = sokCols.find((c) => c.code === 'Вид работ');
+    if (sokWork) {
+      sokWork.type = 'enum_multi';
+      sokWork.options = ASPHALT_WORK_TYPES.slice();
+    }
+    const mrWork = mrCols.find((c) => c.code === 'Вид работ');
+    if (mrWork) {
+      mrWork.type = 'enum_multi';
+      mrWork.options = ASPHALT_WORK_TYPES.slice();
+    }
+    const sokObject = sokCols.find((c) => c.code === 'Вид объекта благоустройства');
+    if (sokObject) {
+      sokObject.type = 'enum_multi';
+      sokObject.options = ['Объект дорожного хозяйства', 'Объекты комплексного благоустройства'];
+    }
+  }
+
+  function resetState() {
+    state.tool = 'predictive';
+    state.mainDataset = 'ogh';
+    state.compareDatasets = ['sok', 'mr'];
+    state.filters = {
+      ogh: createGroup('ogh'),
+      sok: createGroup('sok'),
+      mr: createGroup('mr')
+    };
+    state.selections = { ogh: [], sok: [], mr: [] };
+    state.useCustomWeights = false;
+    state.priorityRules = [createPriorityRule('result')];
+    state.results = [];
+    state.scoredResults = [];
+    state.currentStep = 1;
+    state.activeRowIndex = null;
+  }
+
+  function init() {
+    normalizeDatasetConfigs();
+    resetState();
+    renderStepper();
+    renderToolOptions();
+    renderDatasetPickers();
+    renderFilterBlocks();
+    renderBaseWeights();
+    renderPriorityPanel();
+    renderMapLegend();
+    bindGlobalEvents();
+    updateToolHeader();
   }
 
   function bindGlobalEvents() {
-    $('goToDatasetsBtn').addEventListener('click', () => gotoStep(2));
-    $('goToFiltersBtn').addEventListener('click', () => {
-      if (!state.mainDataset) return alert('Выберите анализируемый набор.');
-      if (!state.compareDatasets.length) return alert('Выберите хотя бы один набор для сравнения.');
-      gotoStep(3);
+    $('toolSelect').addEventListener('change', (e) => {
+      state.tool = e.target.value;
+      updateToolHeader();
     });
-    $('goToParametersBtn').addEventListener('click', () => gotoStep(4));
-    $('goToReviewBtn').addEventListener('click', () => {
-      renderReview();
-      gotoStep(5);
+    $('goToDatasetsBtn').addEventListener('click', () => {
+      $('toolSection').classList.add('is-collapsed');
+      $('datasetsSection').classList.remove('hidden');
+      state.currentStep = 2;
+      renderStepper();
+      $('datasetsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('goToFiltersBtn').addEventListener('click', () => {
+      $('datasetsSection').classList.add('is-collapsed');
+      $('filtersSection').classList.remove('hidden');
+      state.currentStep = 3;
+      renderStepper();
+      renderFilterBlocks();
+      renderPriorityPanel();
+      $('filtersSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('weightsToggle').addEventListener('change', (e) => {
+      state.useCustomWeights = e.target.checked;
+      $('weightsPanel').classList.toggle('hidden', !state.useCustomWeights);
+      if (state.results.length) recomputePriorities();
     });
     $('runAnalysisBtn').addEventListener('click', runAnalysis);
     $('resetBtn').addEventListener('click', resetAll);
     $('newAnalysisBtn').addEventListener('click', resetAll);
     $('exportBtn').addEventListener('click', exportExcel);
-    $('toolSelect').addEventListener('change', (e) => {
-      state.tool = e.target.value;
-      updateToolHeader();
-    });
-
-    document.querySelectorAll('input[name="serviceLifeMode"]').forEach((input) => input.addEventListener('change', (e) => {
-      state.parameters.serviceLifeMode = e.target.value;
-      renderParameters();
-    }));
-    document.querySelectorAll('input[name="uncoveredMode"]').forEach((input) => input.addEventListener('change', (e) => {
-      state.parameters.uncoveredMode = e.target.value;
-      renderParameters();
-    }));
-  }
-
-  function gotoStep(step) {
-    state.currentStep = step;
-    renderStepper();
-    $('datasetsSection').classList.toggle('hidden', step < 2);
-    $('filtersSection').classList.toggle('hidden', step < 3);
-    $('parametersCard').classList.toggle('hidden', step !== 4);
-    $('reviewCard').classList.toggle('hidden', step !== 5);
-    if (step >= 2) $('toolSection').classList.add('hidden');
-    if (step >= 3) $('datasetsSection').classList.add('hidden');
-    if (step >= 4) $('criteriaCard').classList.add('hidden');
-    if (step === 5) {
-      $('criteriaCard').classList.add('hidden');
-      $('parametersCard').classList.add('hidden');
-      $('reviewCard').classList.remove('hidden');
-    }
-    if (step === 3) {
-      $('filtersSection').classList.remove('hidden');
-      $('criteriaCard').classList.remove('hidden');
-      $('parametersCard').classList.add('hidden');
-      $('reviewCard').classList.add('hidden');
-    }
-    if (step === 4) {
-      $('filtersSection').classList.remove('hidden');
-      $('parametersCard').classList.remove('hidden');
-      $('reviewCard').classList.add('hidden');
-    }
-    scrollToTopCard(step);
-  }
-
-  function scrollToTopCard(step) {
-    const mapping = {1:'toolSection',2:'datasetsSection',3:'criteriaCard',4:'parametersCard',5:'reviewCard'};
-    const el = $(mapping[step]);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function renderStepper() {
     $('stepper').innerHTML = STEPS.map((title, index) => {
-      const stepNumber = index + 1;
-      const cls = stepNumber < state.currentStep ? 'is-done' : stepNumber === state.currentStep ? 'is-active' : '';
-      return `<div class="step ${cls}"><span class="step-index">Шаг ${stepNumber}</span><span class="step-title">${title}</span></div>`;
+      const step = index + 1;
+      const cls = step < state.currentStep ? 'is-done' : step === state.currentStep ? 'is-active' : '';
+      return `<div class="step ${cls}"><span class="step-index">Шаг ${step}</span><span class="step-title">${title}</span></div>`;
     }).join('');
   }
 
   function renderToolOptions() {
-    $('toolSelect').innerHTML = (APP.toolOptions || []).map((tool) => `<option value="${tool.code}" ${tool.code === state.tool ? 'selected' : ''}>${tool.title}</option>`).join('');
+    $('toolSelect').innerHTML = TOOL_OPTIONS.map((tool) => `<option value="${tool.code}" ${tool.code === state.tool ? 'selected' : ''}>${tool.title}</option>`).join('');
     updateToolHeader();
   }
 
   function updateToolHeader() {
-    const active = (APP.toolOptions || []).find((tool) => tool.code === state.tool);
+    const active = TOOL_OPTIONS.find((item) => item.code === state.tool);
     $('activeToolBadge').textContent = active?.title || 'Не выбран';
-  }
-
-  function renderDropdown(elId, config) {
-    const mount = $(elId);
-    const selectedCodes = config.multiple ? config.selected.slice() : (config.selected ? [config.selected] : []);
-    const selectedTitles = config.options.filter((opt) => selectedCodes.includes(opt.value)).map((opt) => opt.label);
-    mount.innerHTML = `
-      <div class="dropdown" data-dropdown="${elId}">
-        <button type="button" class="dropdown-trigger">
-          <span class="value">${selectedTitles.length ? selectedTitles.join(', ') : config.placeholder}</span>
-          <span>▾</span>
-        </button>
-        <div class="dropdown-panel hidden">
-          <input class="dropdown-search" type="text" placeholder="Найти">
-          ${config.multiple ? `<label class="option-row select-all-row"><input type="checkbox" data-select-all="${elId}" ${config.options.every((opt) => selectedCodes.includes(opt.value)) ? 'checked' : ''}><div class="option-label">Выбрать все</div></label>` : ''}
-          <div class="dropdown-list">
-            ${config.options.map((opt) => `
-              <label class="option-row" data-option-row>
-                <input type="${config.multiple ? 'checkbox' : 'radio'}" name="${elId}" value="${opt.value}" ${selectedCodes.includes(opt.value) ? 'checked' : ''}>
-                <div>
-                  <div class="option-label">${opt.label}</div>
-                  ${opt.note ? `<div class="option-note">${opt.note}</div>` : ''}
-                </div>
-              </label>`).join('')}
-          </div>
-        </div>
-      </div>
-    `;
-
-    const dropdown = mount.querySelector('.dropdown');
-    const trigger = dropdown.querySelector('.dropdown-trigger');
-    const panel = dropdown.querySelector('.dropdown-panel');
-    trigger.addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.querySelectorAll('.dropdown-panel').forEach((p) => { if (p !== panel) p.classList.add('hidden'); });
-      panel.classList.toggle('hidden');
-    });
-    dropdown.querySelector('.dropdown-search').addEventListener('input', (e) => {
-      const q = e.target.value.toLowerCase().trim();
-      dropdown.querySelectorAll('[data-option-row]').forEach((row) => {
-        row.classList.toggle('hidden', !row.textContent.toLowerCase().includes(q));
-      });
-    });
-    if (config.multiple) {
-      const selectAll = dropdown.querySelector(`[data-select-all="${elId}"]`);
-      if (selectAll) selectAll.addEventListener('change', (e) => {
-        const checked = e.target.checked;
-        dropdown.querySelectorAll('input[type="checkbox"][value]').forEach((input) => { input.checked = checked; });
-        const values = checked ? config.options.map((opt) => opt.value) : [];
-        config.onChange(values);
-        renderDatasetAndCriteriaViewsIfNeeded(elId);
-      });
-      dropdown.querySelectorAll('input[type="checkbox"][value]').forEach((input) => input.addEventListener('change', () => {
-        const values = [...dropdown.querySelectorAll('input[type="checkbox"][value]:checked')].map((el) => el.value);
-        config.onChange(values);
-        renderDatasetAndCriteriaViewsIfNeeded(elId);
-      }));
-    } else {
-      dropdown.querySelectorAll('input[type="radio"][value]').forEach((input) => input.addEventListener('change', (e) => {
-        config.onChange(e.target.value);
-        panel.classList.add('hidden');
-        renderDatasetAndCriteriaViewsIfNeeded(elId);
-      }));
-    }
-  }
-
-  function renderDatasetAndCriteriaViewsIfNeeded(elId) {
-    renderDatasetPickers();
-    renderCriteria();
-    renderReview();
+    $('toolDescription').textContent = active?.description || '';
   }
 
   function renderDatasetPickers() {
-    const options = DATASET_ORDER.map((code) => ({ value: code, label: DATASETS[code].title }));
-    renderDropdown('mainDatasetPicker', {
-      multiple: false,
-      selected: state.mainDataset,
-      options,
-      placeholder: 'Выберите набор',
-      onChange: (value) => {
-        state.mainDataset = value;
-        state.compareDatasets = availableCompareDatasets().filter((code) => state.compareDatasets.includes(code));
-        if (!state.compareDatasets.length) state.compareDatasets = availableCompareDatasets().slice(0, 1);
-      }
+    $('mainDatasetPicker').innerHTML = DATASET_ORDER.map((code) => datasetOption(code, true, state.mainDataset === code)).join('');
+    $('compareDatasetPicker').innerHTML = availableCompareDatasets().map((code) => datasetOption(code, false, state.compareDatasets.includes(code))).join('');
+
+    document.querySelectorAll('input[name="mainDataset"]').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        state.mainDataset = e.target.value;
+        state.compareDatasets = availableCompareDatasets();
+        renderDatasetPickers();
+        renderFilterBlocks();
+      });
     });
 
-    renderDropdown('compareDatasetPicker', {
-      multiple: true,
-      selected: state.compareDatasets,
-      options: availableCompareDatasets().map((code) => ({ value: code, label: DATASETS[code].title })),
-      placeholder: 'Выберите наборы',
-      onChange: (values) => {
-        state.compareDatasets = values.filter((code) => code !== state.mainDataset);
-      }
+    document.querySelectorAll('input[name="compareDataset"]').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const code = e.target.value;
+        if (e.target.checked) {
+          if (!state.compareDatasets.includes(code)) state.compareDatasets.push(code);
+        } else {
+          state.compareDatasets = state.compareDatasets.filter((item) => item !== code);
+        }
+        renderFilterBlocks();
+      });
     });
   }
 
-  function renderCriteria() {
-    $('filtersBlocks').innerHTML = activeDatasetCodes().map((datasetCode) => renderCriteriaBlock(datasetCode)).join('');
-    bindCriteriaEvents();
-  }
-
-  function renderCriteriaBlock(datasetCode) {
-    const ds = DATASETS[datasetCode];
-    const criteria = state.criteria[datasetCode];
-    const role = datasetCode === state.mainDataset ? 'Основной набор' : 'Набор сравнения';
+  function datasetOption(code, radio, checked) {
+    const meta = DATASETS[code];
+    const rowsCount = datasetMeta(code).rows.length;
     return `
-      <section class="filter-block">
-        <div class="filter-block-title-line">
-          <span class="role-pill ${datasetCode === state.mainDataset ? 'main' : 'compare'}">${role}</span>
-          <h3>${ds.title}</h3>
+      <label class="dataset-option">
+        <input type="${radio ? 'radio' : 'checkbox'}" name="${radio ? 'mainDataset' : 'compareDataset'}" value="${code}" ${checked ? 'checked' : ''}>
+        <div>
+          <div class="dataset-option-title">${meta.title}</div>
+          
         </div>
-        <div class="group-box">
-          <label class="radio-line top-space">
-            <input type="checkbox" data-all-data="${datasetCode}" ${criteria.allData ? 'checked' : ''}>
-            Использовать все данные без фильтрации
-          </label>
-          <div class="criteria-toolbar ${criteria.allData ? 'hidden' : ''}">
-            <button class="btn btn-secondary btn-small" data-add-criteria-row="${datasetCode}">Добавить условие</button>
+      </label>
+    `;
+  }
+
+  function renderFilterBlocks() {
+    $('filtersBlocks').innerHTML = activeDatasetCodes().map((code) => renderFilterBlock(code)).join('');
+    bindFilterEvents();
+  }
+
+  function renderFilterBlock(code) {
+    const root = state.filters[code];
+    const meta = DATASETS[code];
+    const role = code === state.mainDataset ? 'Основной набор' : 'Набор сравнения';
+    const selectedCount = collectSelectedNodes(root).length;
+    return `
+      <section class="filter-block" data-dataset-block="${code}">
+        <div class="filter-block-head">
+          <div>
+            <div class="filter-block-title-line">
+              <span class="role-pill ${code === state.mainDataset ? 'main' : 'compare'}">${role}</span>
+              <h3>${meta.title}</h3>
+            </div>
+            <p></p>
           </div>
-          <div class="stack ${criteria.allData ? 'hidden' : ''}">
-            ${criteria.rows.map((row) => renderCriteriaRow(datasetCode, row)).join('')}
+          <span class="selection-chip">Выделено: ${selectedCount}</span>
+        </div>
+
+        <div class="group-box highlighted">
+          <div class="group-head single-group-head">
+            <div>
+              <div class="group-title">Группа условий набора</div>
+              <div class="group-logic-note">Можно вкладывать группы, задавать И/ИЛИ и отдельное отрицание НЕ.</div>
+            </div>
+            <label class="take-all-toggle">
+              <input type="checkbox" data-all-data-toggle="${code}" ${root.allData ? 'checked' : ''}>
+              <span>Использовать все данные без фильтрации</span>
+            </label>
+          </div>
+
+          <div class="filters-toolbar ${root.allData ? 'disabled-area' : ''}">
+            <button class="btn btn-secondary btn-small" data-action="add-row" data-code="${code}">Добавить строку</button>
+            <button class="btn btn-secondary btn-small" data-action="group" data-code="${code}" ${selectedCount < 2 ? 'disabled' : ''}>Сгруппировать</button>
+            <button class="btn btn-secondary btn-small" data-action="ungroup" data-code="${code}" ${!hasSelectedGroup(root) ? 'disabled' : ''}>Разгруппировать</button>
+            <button class="btn btn-secondary btn-small" data-action="delete" data-code="${code}" ${!selectedCount ? 'disabled' : ''}>Удалить выбранные</button>
+            <button class="btn btn-secondary btn-small" data-action="clear-selection" data-code="${code}" ${!selectedCount ? 'disabled' : ''}>Снять выделение</button>
+          </div>
+
+          <div class="${root.allData ? 'disabled-area' : ''}">
+            <div class="tree-root">
+              ${renderNode(root, code, 0, true)}
+            </div>
           </div>
         </div>
       </section>
     `;
   }
 
-  function renderCriteriaRow(datasetCode, row) {
+  function renderNode(node, datasetCode, depth = 0, isRoot = false) {
+    if (node.type === 'row') return renderRowNode(node, datasetCode);
+    const cls = ['criteria-group', `depth-${Math.min(depth, 3)}`, node.selected ? 'is-selected' : ''].join(' ');
+    const children = node.children.length
+      ? node.children.map((child) => renderNode(child, datasetCode, depth + 1, false)).join('')
+      : `<div class="empty-note">Группа пуста. Добавьте строку или разгруппируйте вложенные элементы.</div>`;
+    return `
+      <div class="${cls}" data-node-id="${node.id}">
+        <div class="criteria-group-head">
+          <div>
+            <div class="criteria-group-meta">
+              ${!isRoot ? `<input class="criteria-node-check" type="checkbox" data-node-select="${node.id}" data-code="${datasetCode}" ${node.selected ? 'checked' : ''}>` : '<span class="logic-pill">Корневая группа</span>'}
+              <strong>${isRoot ? 'Корневая группа набора' : 'Группа условий'}</strong>
+              <span class="group-caption">${node.children.length} элемент(ов)</span>
+            </div>
+          </div>
+          <div class="criteria-group-meta">
+            <label class="field">
+              <span class="field-label">Логика</span>
+              <select data-group-operator="${node.id}" data-code="${datasetCode}">
+                <option value="AND" ${node.operator === 'AND' ? 'selected' : ''}>И</option>
+                <option value="OR" ${node.operator === 'OR' ? 'selected' : ''}>ИЛИ</option>
+              </select>
+            </label>
+            <button class="negate-toggle ${node.negated ? 'is-active' : ''}" data-group-negate="${node.id}" data-code="${datasetCode}">НЕ</button>
+            ${!isRoot ? `<button class="criteria-remove" title="Удалить группу" data-remove-node="${node.id}" data-code="${datasetCode}">×</button>` : ''}
+          </div>
+        </div>
+        <div class="group-children">${children}</div>
+      </div>
+    `;
+  }
+
+  function renderRowNode(row, datasetCode) {
     const meta = fieldMeta(datasetCode, row.field);
     const operators = operatorsFor(meta.type);
-    const isBetween = row.operator === 'between';
+    const selected = row.selected ? 'is-selected' : '';
+    const valueControl = renderValueControl(row, meta, datasetCode);
     return `
-      <div class="criteria-row" data-row-id="${row.id}">
-        <label class="field">
-          <span class="field-label">НЕ</span>
-          <button type="button" class="neg-pill ${row.negated ? 'active' : ''}" data-negate-row="${datasetCode}:${row.id}">${row.negated ? 'Включено' : 'Выключено'}</button>
-        </label>
-        <button type="button" class="icon-btn" data-remove-row="${datasetCode}:${row.id}" title="Удалить">🗑</button>
+      <div class="criteria-row ${selected}" data-node-id="${row.id}">
+        <input class="criteria-node-check" type="checkbox" data-node-select="${row.id}" data-code="${datasetCode}" ${row.selected ? 'checked' : ''}>
+        <button class="negate-toggle ${row.negated ? 'is-active' : ''}" data-row-negate="${row.id}" data-code="${datasetCode}">НЕ</button>
         <label class="field">
           <span class="field-label">Атрибут</span>
-          <select data-row-field="${datasetCode}:${row.id}">
+          <select data-row-field="${row.id}" data-code="${datasetCode}">
             ${datasetMeta(datasetCode).columns.map((col) => `<option value="${col.code}" ${col.code === row.field ? 'selected' : ''}>${col.label}</option>`).join('')}
           </select>
         </label>
         <label class="field">
           <span class="field-label">Оператор</span>
-          <select data-row-operator="${datasetCode}:${row.id}">
+          <select data-row-operator="${row.id}" data-code="${datasetCode}">
             ${operators.map(([code, label]) => `<option value="${code}" ${code === row.operator ? 'selected' : ''}>${label}</option>`).join('')}
           </select>
         </label>
-        <label class="field">
-          <span class="field-label">${isBetween ? 'От' : 'Значение'}</span>
-          ${renderValueControl(`criteria:${datasetCode}:${row.id}:value1`, meta, row.value1)}
-        </label>
-        <label class="field ${isBetween ? '' : 'hidden'}">
-          <span class="field-label">До</span>
-          ${renderValueControl(`criteria:${datasetCode}:${row.id}:value2`, meta, row.value2)}
-        </label>
+        ${valueControl}
+        <button class="criteria-remove" title="Удалить условие" data-remove-node="${row.id}" data-code="${datasetCode}">×</button>
       </div>
     `;
   }
 
-  function renderValueControl(key, meta, value) {
-    if (meta.type === 'enum_multi' || meta.type === 'enum') {
-      return `<div id="${escapeId(key)}"></div>`;
+  function renderValueControl(row, meta, datasetCode) {
+    if (['is_empty', 'is_not_empty'].includes(row.operator)) {
+      return `<div class="helper-inline">Без значения</div>`;
     }
-    if (meta.type === 'date') return `<input type="date" value="${toDateInput(value)}" data-simple-input="${key}">`;
-    if (meta.type === 'number') return `<input type="number" step="any" value="${sanitizeAttr(value)}" data-simple-input="${key}">`;
-    return `<input type="text" value="${sanitizeAttr(value)}" data-simple-input="${key}">`;
+    if (row.operator === 'between') {
+      return `
+        <label class="field">
+          <span class="field-label">Значение</span>
+          <div class="range-box">
+            ${singleInput(row.id, 'value1', meta, datasetCode, row.value1)}
+            ${singleInput(row.id, 'value2', meta, datasetCode, row.value2)}
+          </div>
+        </label>
+      `;
+    }
+    return `
+      <label class="field">
+        <span class="field-label">Значение</span>
+        ${singleInput(row.id, 'value1', meta, datasetCode, row.value1)}
+      </label>
+    `;
   }
 
-  function bindCriteriaEvents() {
-    document.querySelectorAll('[data-add-criteria-row]').forEach((btn) => btn.addEventListener('click', () => {
-      const code = btn.getAttribute('data-add-criteria-row');
-      state.criteria[code].rows.push(defaultRow(code));
-      renderCriteria();
-    }));
-    document.querySelectorAll('[data-all-data]').forEach((input) => input.addEventListener('change', (e) => {
-      const code = e.target.getAttribute('data-all-data');
-      state.criteria[code].allData = e.target.checked;
-      renderCriteria();
-    }));
-    document.querySelectorAll('[data-remove-row]').forEach((btn) => btn.addEventListener('click', () => {
-      const [code, rowId] = btn.getAttribute('data-remove-row').split(':');
-      state.criteria[code].rows = state.criteria[code].rows.filter((r) => r.id !== rowId);
-      if (!state.criteria[code].rows.length) state.criteria[code].rows = [defaultRow(code)];
-      renderCriteria();
-    }));
-    document.querySelectorAll('[data-negate-row]').forEach((btn) => btn.addEventListener('click', () => {
-      const [code, rowId] = btn.getAttribute('data-negate-row').split(':');
-      const row = state.criteria[code].rows.find((r) => r.id === rowId);
-      row.negated = !row.negated;
-      renderCriteria();
-    }));
-    document.querySelectorAll('[data-row-field]').forEach((el) => el.addEventListener('change', (e) => {
-      const [code, rowId] = e.target.getAttribute('data-row-field').split(':');
-      const row = state.criteria[code].rows.find((r) => r.id === rowId);
-      row.field = e.target.value;
-      row.operator = defaultOperator(fieldMeta(code, row.field)?.type || 'text');
-      row.value1 = '';
-      row.value2 = '';
-      renderCriteria();
-    }));
-    document.querySelectorAll('[data-row-operator]').forEach((el) => el.addEventListener('change', (e) => {
-      const [code, rowId] = e.target.getAttribute('data-row-operator').split(':');
-      const row = state.criteria[code].rows.find((r) => r.id === rowId);
-      row.operator = e.target.value;
-      row.value2 = '';
-      renderCriteria();
-    }));
-    document.querySelectorAll('[data-simple-input]').forEach((el) => el.addEventListener('input', (e) => {
-      const parts = e.target.getAttribute('data-simple-input').split(':');
-      if (parts[0] === 'criteria') {
-        const [, code, rowId, valueKey] = parts;
-        const row = state.criteria[code].rows.find((r) => r.id === rowId);
-        row[valueKey] = e.target.value;
-      } else if (parts[0] === 'rule') {
-        const [, ruleId, valueKey] = parts;
-        const rule = state.customPriorityRules.find((r) => r.id === ruleId);
-        rule[valueKey] = e.target.value;
-        recomputeResults();
-      } else if (parts[0] === 'param') {
-        handleParameterInput(parts.slice(1), e.target.value);
-      }
-    }));
+  function singleInput(rowId, key, meta, datasetCode, value) {
+    if (meta.type === 'enum_multi') {
+      const selected = Array.isArray(value) ? value : String(value || '').split('||').filter(Boolean);
+      const summary = selected.length ? `Выбрано: ${selected.length}` : 'Выберите значения';
+      return `
+        <div class="custom-multiselect">
+          <details data-multi-details="${rowId}" data-code="${datasetCode}" data-value-key="${key}">
+            <summary>${escapeHtml(summary)}</summary>
+            <div class="multi-dropdown">
+              <input class="multi-search" type="text" placeholder="Найти" data-multi-search="${rowId}" data-code="${datasetCode}">
+              <label class="multi-select-all">
+                <input type="checkbox" data-multi-select-all="${rowId}" data-code="${datasetCode}" ${selected.length === meta.options.length ? 'checked' : ''}>
+                <span>Выбрать все</span>
+              </label>
+              <div class="multi-options">
+                ${meta.options.map((option) => `<label class="multi-option" data-multi-option-label="${rowId}" data-search-text="${escapeAttr(option).toLowerCase()}"><input type="checkbox" value="${escapeHtml(option)}" data-multi-option="${rowId}" data-code="${datasetCode}" ${selected.includes(option) ? 'checked' : ''}><span>${escapeHtml(option)}</span></label>`).join('')}
+              </div>
+            </div>
+          </details>
+        </div>
+      `;
+    }
+    if (meta.type === 'enum') {
+      return `
+        <select data-row-value="${rowId}" data-value-key="${key}" data-code="${datasetCode}">
+          <option value="">Выберите</option>
+          ${meta.options.map((option) => `<option value="${escapeHtml(option)}" ${option === value ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
+        </select>
+      `;
+    }
+    if (meta.type === 'boolean') {
+      return `
+        <select data-row-value="${rowId}" data-value-key="${key}" data-code="${datasetCode}">
+          <option value="">Выберите</option>
+          <option value="True" ${value === 'True' ? 'selected' : ''}>True</option>
+          <option value="False" ${value === 'False' ? 'selected' : ''}>False</option>
+        </select>
+      `;
+    }
+    if (meta.type === 'date') {
+      return `<input type="date" value="${toInputDate(value)}" data-row-value="${rowId}" data-value-key="${key}" data-code="${datasetCode}">`;
+    }
+    if (meta.type === 'number') {
+      return `<input type="number" value="${escapeAttr(value)}" data-row-value="${rowId}" data-value-key="${key}" data-code="${datasetCode}" placeholder="Введите число">`;
+    }
+    return `<input type="text" value="${escapeAttr(value)}" data-row-value="${rowId}" data-value-key="${key}" data-code="${datasetCode}" placeholder="Введите значение">`;
+  }
 
-    // mount enum dropdowns after insertion
-    activeDatasetCodes().forEach((datasetCode) => {
-      state.criteria[datasetCode].rows.forEach((row) => {
-        const meta = fieldMeta(datasetCode, row.field);
-        if (meta.type === 'enum' || meta.type === 'enum_multi') {
-          renderDropdown(escapeId(`criteria:${datasetCode}:${row.id}:value1`), {
-            multiple: true,
-            selected: splitMulti(row.value1),
-            options: (meta.options || []).map((v) => ({ value: v, label: sanitizeText(v) || v })),
-            placeholder: 'Выберите значения',
-            onChange: (values) => {
-              row.value1 = values.join('||');
-            }
+  function bindFilterEvents() {
+    document.querySelectorAll('[data-all-data-toggle]').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const code = e.target.getAttribute('data-all-data-toggle');
+        state.filters[code].allData = e.target.checked;
+        renderFilterBlocks();
+      });
+    });
+
+    document.querySelectorAll('[data-action]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const code = button.getAttribute('data-code');
+        const action = button.getAttribute('data-action');
+        if (action === 'add-row') addRowToSelection(code);
+        if (action === 'group') groupSelectedNodes(code);
+        if (action === 'ungroup') ungroupSelectedNodes(code);
+        if (action === 'delete') deleteSelectedNodes(code);
+        if (action === 'clear-selection') clearSelection(code);
+        renderFilterBlocks();
+      });
+    });
+
+    document.querySelectorAll('[data-node-select]').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        toggleSelection(e.target.getAttribute('data-code'), e.target.getAttribute('data-node-select'), e.target.checked);
+        renderFilterBlocks();
+      });
+    });
+
+    document.querySelectorAll('[data-group-operator]').forEach((select) => {
+      select.addEventListener('change', (e) => {
+        const node = findNode(state.filters[e.target.getAttribute('data-code')], e.target.getAttribute('data-group-operator'));
+        if (node) node.operator = e.target.value;
+      });
+    });
+
+    document.querySelectorAll('[data-group-negate]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const code = button.getAttribute('data-code');
+        const node = findNode(state.filters[code], button.getAttribute('data-group-negate'));
+        if (node) node.negated = !node.negated;
+        renderFilterBlocks();
+      });
+    });
+
+    document.querySelectorAll('[data-row-negate]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const code = button.getAttribute('data-code');
+        const node = findNode(state.filters[code], button.getAttribute('data-row-negate'));
+        if (node) node.negated = !node.negated;
+        renderFilterBlocks();
+      });
+    });
+
+    document.querySelectorAll('[data-row-field]').forEach((select) => {
+      select.addEventListener('change', (e) => {
+        const code = e.target.getAttribute('data-code');
+        const node = findNode(state.filters[code], e.target.getAttribute('data-row-field'));
+        const meta = fieldMeta(code, e.target.value);
+        node.field = e.target.value;
+        node.operator = defaultOperator(meta.type);
+        node.value1 = '';
+        node.value2 = '';
+        renderFilterBlocks();
+      });
+    });
+
+    document.querySelectorAll('[data-row-operator]').forEach((select) => {
+      select.addEventListener('change', (e) => {
+        const code = e.target.getAttribute('data-code');
+        const node = findNode(state.filters[code], e.target.getAttribute('data-row-operator'));
+        node.operator = e.target.value;
+        if (['is_empty', 'is_not_empty'].includes(node.operator)) {
+          node.value1 = '';
+          node.value2 = '';
+        }
+        renderFilterBlocks();
+      });
+    });
+
+    document.querySelectorAll('[data-row-value]').forEach((input) => {
+      const handler = (e) => {
+        const code = e.target.getAttribute('data-code');
+        const node = findNode(state.filters[code], e.target.getAttribute('data-row-value'));
+        const key = e.target.getAttribute('data-value-key');
+        node[key] = fromInputDateIfNeeded(code, node.field, e.target.value);
+      };
+      input.addEventListener('input', handler);
+      input.addEventListener('change', handler);
+    });
+
+    document.querySelectorAll('[data-multi-option]').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const code = e.target.getAttribute('data-code');
+        const rowId = e.target.getAttribute('data-multi-option');
+        const node = findNode(state.filters[code], rowId);
+        if (!node) return;
+        const selected = Array.from(document.querySelectorAll(`[data-multi-option="${rowId}"]:checked`)).map((el) => el.value);
+        node.value1 = selected;
+        const all = document.querySelector(`[data-multi-select-all="${rowId}"]`);
+        const meta = fieldMeta(code, node.field);
+        if (all) all.checked = selected.length === (meta.options || []).length;
+        const summary = document.querySelector(`[data-multi-details="${rowId}"] summary`);
+        if (summary) summary.textContent = selected.length ? `Выбрано: ${selected.length}` : 'Выберите значения';
+      });
+    });
+
+    document.querySelectorAll('[data-multi-select-all]').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const code = e.target.getAttribute('data-code');
+        const rowId = e.target.getAttribute('data-multi-select-all');
+        const node = findNode(state.filters[code], rowId);
+        if (!node) return;
+        const meta = fieldMeta(code, node.field);
+        const values = e.target.checked ? (meta.options || []).slice() : [];
+        node.value1 = values;
+        document.querySelectorAll(`[data-multi-option="${rowId}"]`).forEach((el) => {
+          el.checked = e.target.checked;
+        });
+        const summary = document.querySelector(`[data-multi-details="${rowId}"] summary`);
+        if (summary) summary.textContent = values.length ? `Выбрано: ${values.length}` : 'Выберите значения';
+      });
+    });
+
+    document.querySelectorAll('[data-multi-search]').forEach((input) => {
+      input.addEventListener('input', (e) => {
+        const rowId = e.target.getAttribute('data-multi-search');
+        const q = e.target.value.trim().toLowerCase();
+        document.querySelectorAll(`[data-multi-option-label="${rowId}"]`).forEach((label) => {
+          const text = label.getAttribute('data-search-text') || '';
+          label.style.display = !q || text.includes(q) ? '' : 'none';
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-multi-details]').forEach((details) => {
+      details.addEventListener('toggle', () => {
+        if (details.open) {
+          document.querySelectorAll('[data-multi-details]').forEach((other) => {
+            if (other !== details) other.open = false;
           });
         }
       });
     });
-  }
 
-  function splitMulti(value) {
-    return String(value || '').split('||').filter(Boolean);
-  }
-
-  function renderParameters() {
-    $('serviceLifeSingleBox').classList.toggle('hidden', state.parameters.serviceLifeMode !== 'single');
-    $('serviceLifeMixedBox').classList.toggle('hidden', state.parameters.serviceLifeMode !== 'mixed');
-    $('serviceLifeSingle').value = state.parameters.serviceLifeSingle;
-
-    $('serviceLifeSingle').onchange = (e) => { state.parameters.serviceLifeSingle = e.target.value; };
-    $('serviceLifeMixedBox').innerHTML = (APP.asphaltWorkTypes || []).map((work) => `
-      <div class="mixed-rule-row">
-        <div class="field"><span class="field-label">${work}</span></div>
-        <label class="field">
-          <span class="field-label">Срок</span>
-          <select data-service-mixed="${work}">
-            <option value="5" ${state.parameters.serviceLifeMixed[work] === '5' ? 'selected' : ''}>5 лет</option>
-            <option value="10" ${state.parameters.serviceLifeMixed[work] === '10' ? 'selected' : ''}>10 лет</option>
-            <option value="15" ${state.parameters.serviceLifeMixed[work] === '15' ? 'selected' : ''}>15 лет</option>
-          </select>
-        </label>
-      </div>`).join('');
-    document.querySelectorAll('[data-service-mixed]').forEach((el) => el.addEventListener('change', (e) => {
-      state.parameters.serviceLifeMixed[e.target.getAttribute('data-service-mixed')] = e.target.value;
-    }));
-
-    $('uncoveredSingleBox').innerHTML = renderRangeFilter('param:uncoveredSingle', state.parameters.uncoveredSingle);
-    $('uncoveredSingleBox').querySelectorAll('[data-simple-input]').forEach((el) => el.addEventListener('input', (e) => {
-      handleParameterInput(e.target.getAttribute('data-simple-input').split(':').slice(1), e.target.value);
-    }));
-
-    $('uncoveredSingleBox').querySelector('select').addEventListener('change', (e) => {
-      state.parameters.uncoveredSingle.operator = e.target.value;
-      renderParameters();
+    document.querySelectorAll('[data-remove-node]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const code = button.getAttribute('data-code');
+        removeNodeById(state.filters[code], button.getAttribute('data-remove-node'), true);
+        ensureRootNotEmpty(code);
+        renderFilterBlocks();
+      });
     });
+  }
 
-    $('uncoveredMixedBox').classList.toggle('hidden', state.parameters.uncoveredMode !== 'mixed');
-    $('uncoveredSingleBox').classList.toggle('hidden', state.parameters.uncoveredMode !== 'single');
-    $('uncoveredMixedBox').innerHTML = (APP.asphaltWorkTypes || []).map((work) => `
-      <div class="mixed-rule-row">
-        <div class="field"><span class="field-label">${work}</span></div>
-        <div>${renderRangeFilter(`param:uncoveredMixed:${work}`, state.parameters.uncoveredMixed[work])}</div>
-      </div>`).join('');
+  function addRowToSelection(code) {
+    const root = state.filters[code];
+    const selectedGroups = collectSelectedNodes(root).filter((item) => item.node.type === 'group');
+    let target = root;
+    if (selectedGroups.length === 1) target = selectedGroups[0].node;
+    target.children.push(inferDefaultRow(code));
+  }
 
-    document.querySelectorAll('[data-operator-range]').forEach((el) => el.addEventListener('change', (e) => {
-      const path = e.target.getAttribute('data-operator-range').split(':').slice(1);
-      const target = getParameterObject(path);
-      target.operator = e.target.value;
-      renderParameters();
-    }));
-    document.querySelectorAll('[data-simple-input]').forEach((el) => {
-      if (el.closest('#parametersCard')) {
-        el.addEventListener('input', (e) => handleParameterInput(e.target.getAttribute('data-simple-input').split(':').slice(1), e.target.value));
+  function toggleSelection(code, nodeId, checked) {
+    const node = findNode(state.filters[code], nodeId);
+    if (node) node.selected = checked;
+  }
+
+  function clearSelection(code) {
+    walkNodes(state.filters[code], (node) => { if (node.id) node.selected = false; });
+  }
+
+  function collectSelectedNodes(root) {
+    const out = [];
+    walkNodesWithParent(root, null, (node, parent) => {
+      if (node.selected) out.push({ node, parent });
+    });
+    return out;
+  }
+
+  function hasSelectedGroup(root) {
+    return collectSelectedNodes(root).some((item) => item.node.type === 'group');
+  }
+
+  function groupSelectedNodes(code) {
+    const root = state.filters[code];
+    const selected = collectSelectedNodes(root);
+    if (selected.length < 2) return;
+    const parentId = selected[0].parent?.id || root.id;
+    if (!selected.every((item) => (item.parent?.id || root.id) === parentId)) {
+      alert('Для группировки выберите элементы одного уровня внутри одной и той же группы.');
+      return;
+    }
+    const parent = selected[0].parent || root;
+    const selectedIds = new Set(selected.map((item) => item.node.id));
+    const newGroup = {
+      id: cryptoId(),
+      type: 'group',
+      datasetCode: code,
+      selected: false,
+      negated: false,
+      operator: 'OR',
+      children: []
+    };
+    const nextChildren = [];
+    parent.children.forEach((child) => {
+      if (selectedIds.has(child.id)) {
+        child.selected = false;
+        newGroup.children.push(child);
+      } else {
+        nextChildren.push(child);
       }
     });
-
-    $('volumeFilterBox').innerHTML = renderRangeFilter('param:volume', state.parameters.volume);
-    $('costFilterBox').innerHTML = renderRangeFilter('param:cost', state.parameters.cost);
-    document.querySelectorAll('#parametersCard [data-operator-range]').forEach((el) => el.addEventListener('change', (e) => {
-      const path = e.target.getAttribute('data-operator-range').split(':').slice(1);
-      const target = getParameterObject(path);
-      target.operator = e.target.value;
-      renderParameters();
-    }));
-    document.querySelectorAll('#parametersCard [data-simple-input]').forEach((el) => el.addEventListener('input', (e) => {
-      handleParameterInput(e.target.getAttribute('data-simple-input').split(':').slice(1), e.target.value);
-    }));
+    nextChildren.push(newGroup);
+    parent.children = nextChildren;
   }
 
-  function renderRangeFilter(baseKey, model) {
-    const isBetween = model.operator === 'between';
-    return `
-      <div class="inline-filter-grid">
-        <label class="field">
-          <span class="field-label">Оператор</span>
-          <select data-operator-range="${baseKey}">
-            <option value="gt" ${model.operator === 'gt' ? 'selected' : ''}>Больше</option>
-            <option value="gte" ${model.operator === 'gte' ? 'selected' : ''}>Больше или равно</option>
-            <option value="lt" ${model.operator === 'lt' ? 'selected' : ''}>Меньше</option>
-            <option value="lte" ${model.operator === 'lte' ? 'selected' : ''}>Меньше или равно</option>
-            <option value="between" ${model.operator === 'between' ? 'selected' : ''}>От / До</option>
-          </select>
-        </label>
-        <label class="field">
-          <span class="field-label">${isBetween ? 'От' : 'Значение'}</span>
-          <input type="number" step="any" value="${sanitizeAttr(model.from)}" data-simple-input="${baseKey}:from">
-        </label>
-        <label class="field ${isBetween ? '' : 'hidden'}">
-          <span class="field-label">До</span>
-          <input type="number" step="any" value="${sanitizeAttr(model.to)}" data-simple-input="${baseKey}:to">
-        </label>
-      </div>`;
-  }
-
-  function getParameterObject(path) {
-    if (path[0] === 'uncoveredSingle') return state.parameters.uncoveredSingle;
-    if (path[0] === 'uncoveredMixed') return state.parameters.uncoveredMixed[path[1]];
-    if (path[0] === 'volume') return state.parameters.volume;
-    if (path[0] === 'cost') return state.parameters.cost;
-    return null;
-  }
-
-  function handleParameterInput(path, value) {
-    const target = getParameterObject(path);
-    if (!target) return;
-    const key = path[path.length - 1];
-    target[key] = value;
-  }
-
-  function renderReview() {
-    const criteriaCount = activeDatasetCodes().reduce((sum, code) => sum + (state.criteria[code].allData ? 0 : state.criteria[code].rows.length), 0);
-    const serviceLifeText = state.parameters.serviceLifeMode === 'normative'
-      ? 'По нормативке'
-      : state.parameters.serviceLifeMode === 'single'
-        ? `Единый срок: ${state.parameters.serviceLifeSingle} лет`
-        : 'Гибкая настройка по видам работ';
-
-    $('reviewSummary').innerHTML = `
-      <div class="review-box">
-        <div class="review-box-title">Инструмент</div>
-        <strong>${(APP.toolOptions || []).find((t) => t.code === state.tool)?.title || ''}</strong>
-        <button class="btn btn-secondary btn-small top-space" data-jump-step="1">Изменить</button>
-      </div>
-      <div class="review-box">
-        <div class="review-box-title">Наборы</div>
-        <strong>Анализируемый: ${DATASETS[state.mainDataset].title}</strong>
-        <div>Сравниваемые: ${state.compareDatasets.map((c) => DATASETS[c].title).join(', ')}</div>
-        <button class="btn btn-secondary btn-small top-space" data-jump-step="2">Изменить</button>
-      </div>
-      <div class="review-box">
-        <div class="review-box-title">Критерии</div>
-        <strong>Настроенных условий: ${criteriaCount}</strong>
-        <div>${activeDatasetCodes().map((code) => `${DATASETS[code].short}: ${state.criteria[code].allData ? 'без фильтрации' : state.criteria[code].rows.length + ' условий'}`).join(' · ')}</div>
-        <button class="btn btn-secondary btn-small top-space" data-jump-step="3">Изменить</button>
-      </div>
-      <div class="review-box">
-        <div class="review-box-title">Параметры результата</div>
-        <strong>${serviceLifeText}</strong>
-        <div>Процент непокрытой площади: ${describeRange(state.parameters.uncoveredMode === 'single' ? state.parameters.uncoveredSingle : state.parameters.uncoveredMixed[APP.asphaltWorkTypes?.[0]])}</div>
-        <button class="btn btn-secondary btn-small top-space" data-jump-step="4">Изменить</button>
-      </div>
-    `;
-    $('reviewSummary').querySelectorAll('[data-jump-step]').forEach((btn) => btn.addEventListener('click', () => gotoStep(Number(btn.getAttribute('data-jump-step')))));
-  }
-
-  function describeRange(model) {
-    if (!model) return 'не задан';
-    if (model.operator === 'between') return `от ${model.from || '—'} до ${model.to || '—'}`;
-    const map = { gt: 'больше', gte: 'больше или равно', lt: 'меньше', lte: 'меньше или равно' };
-    return `${map[model.operator] || model.operator} ${model.from || '—'}`;
-  }
-
-  async function runAnalysis() {
-    $('loadingSection').classList.remove('hidden');
-    $('resultsSection').classList.add('hidden');
-    await showLoading('Подготовка пользовательского сценария...', 20);
-    await showLoading('Формирование результата по файлу анализа...', 55);
-
-    const base = (APP.result?.rows || []).map((row) => ({ ...row }));
-    let rows = base.filter((row) => passesParameterFilters(row));
-    await showLoading('Расчёт приоритетов...', 85);
-    state.results = applyPriority(rows);
-    await showLoading('Отрисовка карты и таблицы...', 100);
-
-    $('loadingSection').classList.add('hidden');
-    $('resultsSection').classList.remove('hidden');
-    renderPriorityPanel();
-    renderSummaryCards();
-    renderTable();
-    renderMap();
-    $('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function passesParameterFilters(row) {
-    const uncovered = normalizeNumber(row['Процент непокрытой площади']);
-    const volume = normalizeNumber(row['Примерный объём работ']);
-    const cost = normalizeNumber(row['Примерная стоимость']);
-    if (!passesRange(uncovered, state.parameters.uncoveredSingle)) return false;
-    if (!passesRange(volume, state.parameters.volume)) return false;
-    if (!passesRange(cost, state.parameters.cost)) return false;
-
-    if (state.parameters.serviceLifeMode === 'single') {
-      const service = normalizeNumber(row['Нормативный срок службы']);
-      if (service !== null && service < normalizeNumber(state.parameters.serviceLifeSingle)) return false;
-    }
-    return true;
-  }
-
-  function passesRange(value, model) {
-    if (value === null) return true;
-    const from = normalizeNumber(model.from);
-    const to = normalizeNumber(model.to);
-    switch (model.operator) {
-      case 'gt': return from === null ? true : value > from;
-      case 'gte': return from === null ? true : value >= from;
-      case 'lt': return from === null ? true : value < from;
-      case 'lte': return from === null ? true : value <= from;
-      case 'between': return (from === null || value >= from) && (to === null || value <= to);
-      default: return true;
-    }
-  }
-
-  function applyPriority(rows) {
-    const fields = APP.prioritySystemFields || [];
-    const weights = state.baseWeights;
-    const stats = {};
-    fields.forEach((f) => {
-      const vals = rows.map((r) => normalizeNumber(r[f.code])).filter((v) => v !== null);
-      stats[f.code] = { min: Math.min(...vals, 0), max: Math.max(...vals, 1) };
+  function ungroupSelectedNodes(code) {
+    const root = state.filters[code];
+    const selectedGroups = collectSelectedNodes(root).filter((item) => item.node.type === 'group');
+    if (!selectedGroups.length) return;
+    selectedGroups.forEach(({ node, parent }) => {
+      if (!parent) return;
+      const idx = parent.children.findIndex((item) => item.id === node.id);
+      if (idx >= 0) {
+        node.children.forEach((child) => child.selected = false);
+        parent.children.splice(idx, 1, ...node.children);
+      }
     });
-
-    const scored = rows.map((row) => {
-      let score = 0;
-      let reasons = [];
-      fields.forEach((f) => {
-        const num = normalizeNumber(row[f.code]);
-        if (num === null) return;
-        const range = stats[f.code];
-        const norm = range.max === range.min ? 1 : (num - range.min) / (range.max - range.min);
-        score += norm * (weights[f.code] || 0);
-        reasons.push(`${f.label}: ${num}`);
-      });
-
-      state.customPriorityRules.forEach((rule) => {
-        if (rowMatchesRule(row, rule, 'result')) {
-          score += Number(rule.coefficient || 0);
-          reasons.push(`Правило: ${rule.field}`);
-        }
-      });
-
-      return {
-        ...row,
-        'Приоритетный вес': score.toFixed(2),
-        'Причины приоритезации': reasons.join(' · ')
-      };
-    }).sort((a, b) => Number(b['Приоритетный вес']) - Number(a['Приоритетный вес']));
-    return scored;
+    ensureRootNotEmpty(code);
   }
 
-  function rowMatchesRule(row, rule, datasetCode) {
-    const meta = resultFieldOptions().find((f) => f.code === rule.field) || { type: 'text' };
-    const raw = row[rule.field];
-    if (meta.type === 'number') {
-      const val = normalizeNumber(raw);
-      const a = normalizeNumber(rule.value1);
-      const b = normalizeNumber(rule.value2);
-      if (val === null) return false;
-      if (rule.operator === 'between') return (a === null || val >= a) && (b === null || val <= b);
-      if (rule.operator === 'gt') return val > a;
-      if (rule.operator === 'gte') return val >= a;
-      if (rule.operator === 'lt') return val < a;
-      if (rule.operator === 'lte') return val <= a;
-      return val === a;
+  function deleteSelectedNodes(code) {
+    const root = state.filters[code];
+    const selectedIds = new Set(collectSelectedNodes(root).map((item) => item.node.id));
+    if (!selectedIds.size) return;
+    filterTree(root, (node, parent) => !selectedIds.has(node.id) || parent === null);
+    ensureRootNotEmpty(code);
+  }
+
+  function filterTree(group, predicate) {
+    group.children = group.children.filter((child) => predicate(child, group));
+    group.children.forEach((child) => {
+      if (child.type === 'group') filterTree(child, predicate);
+    });
+  }
+
+  function ensureRootNotEmpty(code) {
+    const root = state.filters[code];
+    if (!root.children.length) root.children.push(inferDefaultRow(code));
+  }
+
+  function walkNodes(node, cb) {
+    cb(node);
+    if (node.type === 'group') node.children.forEach((child) => walkNodes(child, cb));
+  }
+
+  function walkNodesWithParent(node, parent, cb) {
+    cb(node, parent);
+    if (node.type === 'group') node.children.forEach((child) => walkNodesWithParent(child, node, cb));
+  }
+
+  function findNode(root, id) {
+    let found = null;
+    walkNodes(root, (node) => { if (node.id === id) found = node; });
+    return found;
+  }
+
+  function removeNodeById(root, id, allowNested) {
+    if (root.type !== 'group') return false;
+    const idx = root.children.findIndex((child) => child.id === id);
+    if (idx >= 0) {
+      root.children.splice(idx, 1);
+      return true;
     }
-    const text = sanitizeText(raw).toLowerCase();
-    const target = sanitizeText(rule.value1).toLowerCase();
-    if (rule.operator === 'contains') return text.includes(target);
-    if (rule.operator === 'not_contains') return !text.includes(target);
-    if (rule.operator === 'neq') return text !== target;
-    return text === target;
+    if (allowNested) {
+      return root.children.some((child) => child.type === 'group' && removeNodeById(child, id, true));
+    }
+    return false;
   }
 
-  async function showLoading(text, percent) {
-    $('loadingText').textContent = text;
-    $('loadingFill').style.width = `${percent}%`;
-    $('loadingPercent').textContent = `${percent}%`;
-    await new Promise((resolve) => setTimeout(resolve, 220));
+  function renderBaseWeights() {
+    $('baseWeightsChips').innerHTML = BASE_WEIGHT_CHIPS
+      .map((item) => `<span class="chip">${item.label} — ${item.value}</span>`)
+      .join('');
   }
 
   function renderPriorityPanel() {
-    $('baseWeightsChips').innerHTML = (APP.prioritySystemFields || []).map((field) => `<span class="chip">${field.label} — ${state.baseWeights[field.code] || 0}%</span>`).join('');
+    $('weightsPanel').classList.toggle('hidden', !state.useCustomWeights);
+    $('weightsToggle').checked = state.useCustomWeights;
     $('weightsPanel').innerHTML = `
-      <div class="stack">
-        ${(APP.prioritySystemFields || []).map((field) => `
-          <div class="weight-row">
-            <div>
-              <div class="option-label">${field.label}</div>
-              <div class="option-note">Системный атрибут из результата</div>
-            </div>
-            <input type="number" min="0" max="100" value="${state.baseWeights[field.code] || 0}" data-base-weight="${field.code}">
-          </div>
-        `).join('')}
+      <div class="priority-tools">
+        <div class="helper-inline">Можно вернуть базовую схему приоритизации и при необходимости добавить свои правила: набор → атрибут → условие → коэффициент.</div>
+        <button class="btn btn-secondary btn-small" id="addPriorityRuleBtn">Добавить правило</button>
       </div>
-      <div class="priority-rules-box" style="padding:14px;">
-        <div class="card-head">
-          <div>
-            <h3>Кастомные правила</h3>
-            <p>Можно задать свой коэффициент только по атрибутам справочника результата.</p>
-          </div>
-          <button class="btn btn-secondary btn-small" id="addPriorityRuleBtn">Добавить правило</button>
-        </div>
-        <div class="stack">
-          ${state.customPriorityRules.map((rule) => renderPriorityRule(rule)).join('')}
-        </div>
+      <div class="stack compact-stack">
+        ${state.priorityRules.map((rule) => renderPriorityRule(rule)).join('')}
       </div>
     `;
-    $('weightsPanel').querySelectorAll('[data-base-weight]').forEach((input) => input.addEventListener('input', (e) => {
-      state.baseWeights[e.target.getAttribute('data-base-weight')] = Number(e.target.value || 0);
-      state.results = applyPriority(state.results);
-      renderPriorityPanel();
-      renderTable();
-      renderMap();
-    }));
-    const addBtn = $('addPriorityRuleBtn');
-    if (addBtn) addBtn.addEventListener('click', () => {
-      state.customPriorityRules.push(createPriorityRule());
+    if (!$('addPriorityRuleBtn')) return;
+    $('addPriorityRuleBtn').addEventListener('click', () => {
+      state.priorityRules.push(createPriorityRule('result'));
       renderPriorityPanel();
     });
-    state.customPriorityRules.forEach((rule) => {
-      const fieldMeta = resultFieldOptions().find((f) => f.code === rule.field) || { type: 'text' };
-      if (fieldMeta.type === 'enum') {
-        renderDropdown(escapeId(`rule:${rule.id}:value1`), {
-          multiple: true,
-          selected: splitMulti(rule.value1),
-          options: distinctResultValues(rule.field).map((v) => ({ value: v, label: sanitizeText(v) || v })),
-          placeholder: 'Выберите значения',
-          onChange: (values) => {
-            rule.value1 = values.join('||');
-            recomputeResults();
-          }
-        });
-      }
+    document.querySelectorAll('[data-priority-dataset]').forEach((select) => {
+      select.addEventListener('change', (e) => {
+        const rule = state.priorityRules.find((item) => item.id === e.target.getAttribute('data-rule-id'));
+        rule.datasetCode = e.target.value;
+        const firstField = resultColumnsForRule(rule.datasetCode)[0];
+        rule.field = firstField?.code || '';
+        rule.operator = defaultOperator(firstField?.type || 'text');
+        rule.value1 = '';
+        rule.value2 = '';
+        renderPriorityPanel();
+        if (state.results.length) recomputePriorities();
+      });
     });
-    $('weightsPanel').querySelectorAll('[data-rule-field]').forEach((el) => el.addEventListener('change', (e) => {
-      const rule = state.customPriorityRules.find((r) => r.id === e.target.getAttribute('data-rule-field'));
-      rule.field = e.target.value;
-      rule.operator = defaultOperator((resultFieldOptions().find((f) => f.code === rule.field) || {}).type || 'text');
-      rule.value1 = '';
-      rule.value2 = '';
-      renderPriorityPanel();
-      recomputeResults();
-    }));
-    $('weightsPanel').querySelectorAll('[data-rule-operator]').forEach((el) => el.addEventListener('change', (e) => {
-      const rule = state.customPriorityRules.find((r) => r.id === e.target.getAttribute('data-rule-operator'));
-      rule.operator = e.target.value;
-      renderPriorityPanel();
-      recomputeResults();
-    }));
-    $('weightsPanel').querySelectorAll('[data-simple-input]').forEach((el) => el.addEventListener('input', (e) => {
-      const parts = e.target.getAttribute('data-simple-input').split(':');
-      const rule = state.customPriorityRules.find((r) => r.id === parts[1]);
-      rule[parts[2]] = e.target.value;
-      recomputeResults();
-    }));
-    $('weightsPanel').querySelectorAll('[data-rule-coeff]').forEach((el) => el.addEventListener('input', (e) => {
-      const rule = state.customPriorityRules.find((r) => r.id === e.target.getAttribute('data-rule-coeff'));
-      rule.coefficient = Number(e.target.value || 0);
-      recomputeResults();
-    }));
-    $('weightsPanel').querySelectorAll('[data-rule-remove]').forEach((el) => el.addEventListener('click', (e) => {
-      state.customPriorityRules = state.customPriorityRules.filter((r) => r.id !== e.target.getAttribute('data-rule-remove'));
-      if (!state.customPriorityRules.length) state.customPriorityRules = [createPriorityRule()];
-      renderPriorityPanel();
-      recomputeResults();
-    }));
+    document.querySelectorAll('[data-priority-field]').forEach((select) => {
+      select.addEventListener('change', (e) => {
+        const rule = state.priorityRules.find((item) => item.id === e.target.getAttribute('data-rule-id'));
+        rule.field = e.target.value;
+        const meta = ruleFieldMeta(rule);
+        rule.operator = defaultOperator(meta.type);
+        rule.value1 = '';
+        rule.value2 = '';
+        renderPriorityPanel();
+        if (state.results.length) recomputePriorities();
+      });
+    });
+    document.querySelectorAll('[data-priority-operator]').forEach((select) => {
+      select.addEventListener('change', (e) => {
+        const rule = state.priorityRules.find((item) => item.id === e.target.getAttribute('data-rule-id'));
+        rule.operator = e.target.value;
+        renderPriorityPanel();
+        if (state.results.length) recomputePriorities();
+      });
+    });
+    document.querySelectorAll('[data-priority-value]').forEach((input) => {
+      input.addEventListener('input', (e) => {
+        const rule = state.priorityRules.find((item) => item.id === e.target.getAttribute('data-rule-id'));
+        const key = e.target.getAttribute('data-value-key');
+        rule[key] = e.target.value;
+        if (state.results.length) recomputePriorities();
+      });
+    });
+    document.querySelectorAll('[data-priority-coef]').forEach((input) => {
+      input.addEventListener('input', (e) => {
+        const rule = state.priorityRules.find((item) => item.id === e.target.getAttribute('data-rule-id'));
+        rule.coefficient = Number(e.target.value) || 0;
+        if (state.results.length) recomputePriorities();
+      });
+    });
+    document.querySelectorAll('[data-priority-remove]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.priorityRules = state.priorityRules.filter((item) => item.id !== btn.getAttribute('data-priority-remove'));
+        if (!state.priorityRules.length) state.priorityRules.push(createPriorityRule('result'));
+        renderPriorityPanel();
+        if (state.results.length) recomputePriorities();
+      });
+    });
   }
 
   function renderPriorityRule(rule) {
-    const fields = resultFieldOptions();
-    const meta = fields.find((f) => f.code === rule.field) || { type: 'text' };
-    const isBetween = rule.operator === 'between';
+    const fields = resultColumnsForRule(rule.datasetCode);
+    const meta = ruleFieldMeta(rule);
     return `
-      <div class="priority-rule-row">
+      <div class="priority-rule">
         <label class="field">
-          <span class="field-label">Атрибут</span>
-          <select data-rule-field="${rule.id}">
-            ${fields.map((f) => `<option value="${f.code}" ${f.code === rule.field ? 'selected' : ''}>${f.label}</option>`).join('')}
+          <span class="field-label">Набор</span>
+          <select data-priority-dataset="${rule.id}" data-rule-id="${rule.id}">
+            <option value="result" ${rule.datasetCode === 'result' ? 'selected' : ''}>Результат анализа</option>
+            <option value="ogh" ${rule.datasetCode === 'ogh' ? 'selected' : ''}>Набор ОГХ</option>
+            <option value="sok" ${rule.datasetCode === 'sok' ? 'selected' : ''}>Набор благоустройства (СОК)</option>
+            <option value="mr" ${rule.datasetCode === 'mr' ? 'selected' : ''}>Набор благоустройства (МР)</option>
           </select>
         </label>
         <label class="field">
-          <span class="field-label">Оператор</span>
-          <select data-rule-operator="${rule.id}">
+          <span class="field-label">Атрибут</span>
+          <select data-priority-field="${rule.id}" data-rule-id="${rule.id}">
+            ${fields.map((field) => `<option value="${field.code}" ${field.code === rule.field ? 'selected' : ''}>${field.label || field.code}</option>`).join('')}
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Условие</span>
+          <select data-priority-operator="${rule.id}" data-rule-id="${rule.id}">
             ${operatorsFor(meta.type).map(([code, label]) => `<option value="${code}" ${code === rule.operator ? 'selected' : ''}>${label}</option>`).join('')}
           </select>
         </label>
-        <label class="field">
-          <span class="field-label">${isBetween ? 'От' : 'Значение'}</span>
-          ${meta.type === 'enum' ? `<div id="${escapeId(`rule:${rule.id}:value1`)}"></div>` :
-            meta.type === 'number' ? `<input type="number" step="any" value="${sanitizeAttr(rule.value1)}" data-simple-input="rule:${rule.id}:value1">` :
-            `<input type="text" value="${sanitizeAttr(rule.value1)}" data-simple-input="rule:${rule.id}:value1">`}
-        </label>
-        <label class="field ${isBetween ? '' : 'hidden'}">
-          <span class="field-label">До</span>
-          <input type="number" step="any" value="${sanitizeAttr(rule.value2)}" data-simple-input="rule:${rule.id}:value2">
-        </label>
+        ${renderPriorityValue(rule, meta)}
         <label class="field">
           <span class="field-label">Коэффициент</span>
-          <input type="number" value="${rule.coefficient}" data-rule-coeff="${rule.id}">
+          <input type="number" data-priority-coef="${rule.id}" data-rule-id="${rule.id}" value="${rule.coefficient}">
         </label>
-        <button class="icon-btn" data-rule-remove="${rule.id}" title="Удалить">🗑</button>
+        <button class="criteria-remove" title="Удалить правило" data-priority-remove="${rule.id}">×</button>
       </div>
     `;
   }
 
-  function recomputeResults() {
-    state.results = applyPriority(state.results.map((row) => {
-      const copy = { ...row };
-      delete copy['Приоритетный вес'];
-      delete copy['Причины приоритезации'];
-      return copy;
-    }));
-    renderSummaryCards();
-    renderTable();
-    renderMap();
+  function renderPriorityValue(rule, meta) {
+    if (['is_empty', 'is_not_empty'].includes(rule.operator)) {
+      return `<div class="helper-inline">Без значения</div>`;
+    }
+    if (rule.operator === 'between') {
+      return `
+        <label class="field">
+          <span class="field-label">Значение</span>
+          <div class="range-box">
+            ${priorityInput(rule, meta, 'value1')}
+            ${priorityInput(rule, meta, 'value2')}
+          </div>
+        </label>
+      `;
+    }
+    return `
+      <label class="field">
+        <span class="field-label">Значение</span>
+        ${priorityInput(rule, meta, 'value1')}
+      </label>
+    `;
   }
 
-  function distinctResultValues(field) {
-    return [...new Set((APP.result?.rows || []).map((r) => r[field]).filter((v) => sanitizeText(v) !== ''))];
+  function priorityInput(rule, meta, key) {
+    const attr = `data-priority-value="${rule.id}" data-rule-id="${rule.id}" data-value-key="${key}"`;
+    if (meta.type === 'enum') {
+      const options = resultColumnsForRule(rule.datasetCode).find((item) => item.code === rule.field)?.options || [];
+      return `<input type="text" ${attr} value="${escapeAttr(rule[key] || '')}" placeholder="Введите значение">`;
+    }
+    if (meta.type === 'number') return `<input type="number" ${attr} value="${escapeAttr(rule[key] || '')}">`;
+    if (meta.type === 'date') return `<input type="date" ${attr} value="${toInputDate(rule[key] || '')}">`;
+    return `<input type="text" ${attr} value="${escapeAttr(rule[key] || '')}">`;
+  }
+
+  function ruleFieldMeta(rule) {
+    if (rule.datasetCode === 'result') {
+      return { code: rule.field, label: rule.field, type: inferResultColumnType(rule.field) };
+    }
+    return fieldMeta(rule.datasetCode, rule.field);
+  }
+
+  function evaluateCondition(record, field, operator, value1, value2, type) {
+    const raw = sanitizeText(record[field]);
+    if (operator === 'is_empty') return raw === '';
+    if (operator === 'is_not_empty') return raw !== '';
+
+    if (type === 'number') {
+      const left = normalizeNumber(raw);
+      const v1 = normalizeNumber(value1);
+      const v2 = normalizeNumber(value2);
+      if (left === null) return false;
+      if (operator === 'eq') return left === v1;
+      if (operator === 'gt') return left > v1;
+      if (operator === 'gte') return left >= v1;
+      if (operator === 'lt') return left < v1;
+      if (operator === 'lte') return left <= v1;
+      if (operator === 'between') return left >= Math.min(v1, v2) && left <= Math.max(v1, v2);
+      if (operator === 'neq') return left !== v1;
+    }
+
+    if (type === 'date') {
+      const left = normalizeDate(raw);
+      const d1 = value1 ? new Date(value1) : null;
+      const d2 = value2 ? new Date(value2) : null;
+      if (!left) return false;
+      if (operator === 'eq') return d1 && left.getTime() === d1.getTime();
+      if (operator === 'gte') return d1 && left >= d1;
+      if (operator === 'lte') return d1 && left <= d1;
+      if (operator === 'between') return d1 && d2 && left >= d1 && left <= d2;
+      if (operator === 'neq') return d1 && left.getTime() !== d1.getTime();
+    }
+
+    if (type === 'enum_multi') {
+      const selected = Array.isArray(value1) ? value1 : String(value1 || '').split('||').filter(Boolean);
+      if (!selected.length) return false;
+      const left = raw.toLowerCase();
+      const matches = selected.some((item) => left === sanitizeText(item).toLowerCase());
+      if (operator === 'in') return matches;
+      if (operator === 'not_in') return !matches;
+      return false;
+    }
+
+    const left = raw.toLowerCase();
+    const right = sanitizeText(value1).toLowerCase();
+    if (operator === 'eq') return left === right;
+    if (operator === 'neq') return left !== right;
+    if (operator === 'contains') return left.includes(right);
+    if (operator === 'not_contains') return !left.includes(right);
+    return false;
+  }
+
+  function evaluateNode(node, record, datasetCode) {
+    if (node.type === 'row') {
+      const meta = fieldMeta(datasetCode, node.field);
+      let ok = evaluateCondition(record, node.field, node.operator, node.value1, node.value2, meta.type);
+      if (node.negated) ok = !ok;
+      return ok;
+    }
+    let ok = node.operator === 'AND'
+      ? node.children.every((child) => evaluateNode(child, record, datasetCode))
+      : node.children.some((child) => evaluateNode(child, record, datasetCode));
+    if (node.negated) ok = !ok;
+    return ok;
+  }
+
+  function matchedCount(datasetCode) {
+    const root = state.filters[datasetCode];
+    const rows = datasetMeta(datasetCode).rows || [];
+    if (root.allData) return rows.length;
+    return rows.filter((record) => evaluateNode(root, record, datasetCode)).length;
+  }
+
+  function runAnalysis() {
+    $('loadingSection').classList.remove('hidden');
+    $('loadingFill').style.width = '0%';
+    $('loadingPercent').textContent = '0%';
+    $('loadingText').textContent = 'Подготовка данных...';
+
+    const steps = [
+      { pct: 22, text: 'Чтение пользовательского сценария фильтрации...' },
+      { pct: 48, text: 'Сопоставление наборов и критериев...' },
+      { pct: 78, text: 'Подготовка результата анализа...' },
+      { pct: 100, text: 'Формирование карты и итоговой таблицы...' }
+    ];
+
+    let idx = 0;
+    const timer = setInterval(() => {
+      const step = steps[idx];
+      $('loadingFill').style.width = `${step.pct}%`;
+      $('loadingPercent').textContent = `${step.pct}%`;
+      $('loadingText').textContent = step.text;
+      idx++;
+      if (idx >= steps.length) {
+        clearInterval(timer);
+        finalizeRun();
+      }
+    }, 280);
+  }
+
+  function finalizeRun() {
+    state.results = (APP.result?.rows || []).map((row, index) => ({ ...row, ...deriveEstimateFields(row), __index: index })) || [];
+    recomputePriorities();
+
+    $('loadingSection').classList.add('hidden');
+    $('resultsSection').classList.remove('hidden');
+    state.currentStep = 5;
+    renderStepper();
+    renderSummaryCards();
+    renderResultsTable();
+    ensureMap();
+    renderMap();
+    requestAnimationFrame(() => { if (state.map) state.map.invalidateSize(true); });
+    setTimeout(() => { if (state.map) state.map.invalidateSize(true); renderMap(); }, 250);
+    setTimeout(() => { if (state.map) state.map.invalidateSize(true); }, 700);
+    $('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+
+  function deriveEstimateFields(row) {
+    const area = normalizeNumber(row['Площадь неблагоустроенной территории']) || normalizeNumber(row['Площадь']) || 0;
+    const volume = Math.round(area * 1.08);
+    const cost = Math.round(volume * 3200);
+    return {
+      'Примерный объём работ': volume,
+      'Примерная стоимость': cost
+    };
+  }
+
+  function recomputePriorities() {
+    const rows = state.results.length ? state.results : ((APP.result?.rows || []).map((row, index) => ({ ...row, ...deriveEstimateFields(row), __index: index })));
+    state.scoredResults = rows
+      .slice()
+      .sort((a, b) => (a.__index ?? 0) - (b.__index ?? 0))
+      .map((row) => ({ ...row, __score: 0, __priorityBand: 'base' }));
+    if (state.results.length) {
+      renderSummaryCards();
+      renderResultsTable();
+      renderMap();
+    }
   }
 
   function renderSummaryCards() {
-    const total = state.results.length;
-    const totalCost = state.results.reduce((sum, item) => sum + (normalizeNumber(item['Примерная стоимость']) || 0), 0);
-    const totalVolume = state.results.reduce((sum, item) => sum + (normalizeNumber(item['Примерный объём работ']) || 0), 0);
-
-    $('resultSummaryCards').innerHTML = `
+    const cards = [
+            { title: 'Строк в наборе ОГХ', value: datasetMeta('ogh').rows.length, note: '' },
+      { title: 'Строк в наборе СОК', value: datasetMeta('sok').rows.length, note: '' },
+      { title: 'Строк в наборе МР', value: datasetMeta('mr').rows.length, note: '' },
+      { title: 'Строк в результате', value: state.scoredResults.length, note: 'Все строки и атрибуты из файла результата анализа' }
+    ];
+    $('resultSummaryCards').innerHTML = cards.map((card) => `
       <div class="summary-card">
-        <div class="summary-card-title">Объекты в результате</div>
-        <span class="summary-card-value">${total}</span>
-        <div class="summary-card-sub">Итоговый реестр после применения параметров результата</div>
+        <div class="summary-card-title">${card.title}</div>
+        <div class="summary-card-value">${card.value}</div>
+        <div class="summary-card-note">${card.note}</div>
       </div>
-      <div class="summary-card">
-        <div class="summary-card-title">Рекомендуемый объём</div>
-        <span class="summary-card-value">${formatNumber(totalVolume)}</span>
-        <div class="summary-card-sub">Суммарный объём по всем объектам</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-card-title">Ориентировочная стоимость</div>
-        <span class="summary-card-value">${formatCurrency(totalCost)}</span>
-        <div class="summary-card-sub">Суммарная оценка по результату</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-card-title">Максимальный вес</div>
-        <span class="summary-card-value">${state.results[0]?.['Приоритетный вес'] || '0.00'}</span>
-        <div class="summary-card-sub">Лидер списка по приоритизации</div>
-      </div>
-    `;
+    `).join('');
   }
 
-  function resultColumnsOrdered() {
-    const base = getResultColumns();
-    const front = ['Приоритетный вес', 'Причины приоритезации', 'Давность ремонта', 'Процент непокрытой площади', 'Примерный объём работ', 'Примерная стоимость', 'Нормативный срок службы'];
-    return [...front, ...base.filter((c) => !front.includes(c))];
+  function renderResultsTable() {
+    const columns = [...(APP.result.columns || []), ...EXTRA_RESULT_COLUMNS];
+    $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th class="${EXTRA_RESULT_COLUMNS.includes(col) ? 'numeric-cell' : ''}">${escapeHtml(col)}</th>`).join('')}</tr>`;
+    $('resultsBody').innerHTML = state.scoredResults.map((row, index) => `
+      <tr data-result-index="${index}" class="${state.activeRowIndex === index ? 'is-active' : ''}">
+        ${columns.map((col) => {
+          const value = row[col] ?? '';
+          const display = col === RESULT_GEOMETRY_KEY ? escapeHtml(String(value).slice(0, 120)) + '…' : formatResultCell(col, value);
+          const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', EXTRA_RESULT_COLUMNS.includes(col) ? 'numeric-cell' : ''].join(' ').trim();
+          return `<td class="${cls}">${display}</td>`;
+        }).join('')}
+      </tr>
+    `).join('');
+    document.querySelectorAll('[data-result-index]').forEach((tr) => {
+      tr.addEventListener('click', () => focusResult(Number(tr.getAttribute('data-result-index'))));
+    });
   }
 
-  function renderTable() {
-    const columns = resultColumnsOrdered().filter((col) => col !== RESULT_GEOMETRY_KEY);
-    const table = $('resultsTable');
-    table.innerHTML = `
-      <thead>
-        <tr>${columns.map((c) => `<th>${c}</th>`).join('')}</tr>
-      </thead>
-      <tbody>
-        ${state.results.map((row, index) => `
-          <tr data-result-row="${index}" class="${state.activeRowIndex === index ? 'is-active' : ''}">
-            ${columns.map((col) => `<td>${renderCell(row[col])}</td>`).join('')}
-          </tr>`).join('')}
-      </tbody>
-    `;
-    table.querySelectorAll('[data-result-row]').forEach((tr) => tr.addEventListener('click', () => {
-      const index = Number(tr.getAttribute('data-result-row'));
-      state.activeRowIndex = index;
-      renderTable();
-      focusMapOnRow(state.results[index]);
-    }));
+
+  function formatResultCell(column, value) {
+    if (value === null || value === undefined || value === '') return '';
+    if (EXTRA_RESULT_COLUMNS.includes(column)) {
+      return escapeHtml(new Intl.NumberFormat('ru-RU').format(Number(value || 0)));
+    }
+    return escapeHtml(sanitizeText(value));
   }
 
-  function renderCell(value) {
-    const clean = String(value ?? '');
-    if (clean.includes('<span')) return clean;
-    return sanitizeHtml(clean || '—');
+  function ensureMap() {
+    if (state.map) return;
+    state.map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([55.75, 37.62], 11);
+    const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '',
+      maxZoom: 19,
+      crossOrigin: false
+    });
+    tiles.addTo(state.map);
+    state.map.whenReady(() => {
+      state.map.invalidateSize(true);
+      setTimeout(() => state.map.invalidateSize(true), 150);
+    });
   }
 
   function renderMapLegend() {
     $('mapLegend').innerHTML = `
-      <div class="legend-item"><span class="legend-dot" style="background:#d12f2f"></span> Высокий приоритет</div>
-      <div class="legend-item"><span class="legend-dot" style="background:#e39b14"></span> Средний приоритет</div>
-      <div class="legend-item"><span class="legend-dot" style="background:#2d7de0"></span> Низкий приоритет</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:#2563eb"></span> Объекты результата анализа</div>
     `;
   }
 
+  function colorForBand(band) {
+    return band === 'high' ? '#dc2626' : band === 'medium' ? '#d97706' : band === 'low' ? '#16a34a' : '#2563eb';
+  }
+
   function renderMap() {
-    if (!state.map) {
-      state.map = L.map('map');
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(state.map);
-    }
-    state.layers.forEach((layer) => state.map.removeLayer(layer));
-    state.layers = [];
+    if (!state.map) return;
+    state.mapLayers.forEach((layer) => layer.remove());
+    state.mapLayers = [];
+    const allLayers = [];
 
-    const group = [];
-    state.results.forEach((row, index) => {
-      const coords = wktToLatLngs(row[RESULT_GEOMETRY_KEY]);
-      if (!coords.length) return;
-      const color = getPriorityColor(Number(row['Приоритетный вес']));
-      const polygon = L.polygon(coords, { color, weight: 2, fillOpacity: 0.25 });
-      polygon.addTo(state.map);
-      polygon.on('click', () => {
-        state.activeRowIndex = index;
-        renderTable();
-        focusMapOnRow(row);
-      });
-      state.layers.push(polygon);
-      group.push(polygon);
+    state.scoredResults.forEach((row, index) => {
+      const geo = parseWktGeometry(row[RESULT_GEOMETRY_KEY]);
+      if (!geo) return;
+      const layer = L.geoJSON(geo, {
+        style: {
+          color: colorForBand(row.__priorityBand),
+          weight: state.activeRowIndex === index ? 4 : 2,
+          fillOpacity: 0.28
+        }
+      }).addTo(state.map);
+      layer.on('click', () => focusResult(index));
+      layer.bindTooltip(sanitizeText(row['Наименование'] || row['ИД ОГХ'] || `Объект ${index + 1}`));
+      state.mapLayers.push(layer);
+      allLayers.push(layer);
     });
-    if (group.length) {
-      const fg = L.featureGroup(group);
-      state.map.fitBounds(fg.getBounds().pad(0.1));
+
+    if (allLayers.length) {
+      const group = L.featureGroup(allLayers);
+      state.map.fitBounds(group.getBounds().pad(0.12));
     } else {
-      state.map.setView([55.75, 37.62], 10);
+      state.map.setView([55.75, 37.62], 11);
     }
-    renderMapLegend();
+    setTimeout(() => state.map.invalidateSize(true), 50);
+    setTimeout(() => state.map.invalidateSize(true), 250);
   }
 
-  function getPriorityColor(score) {
-    if (score >= 65) return '#d12f2f';
-    if (score >= 40) return '#e39b14';
-    return '#2d7de0';
+  function focusResult(index) {
+    state.activeRowIndex = index;
+    renderResultsTable();
+    renderMap();
+    const row = state.scoredResults[index];
+    const geo = parseWktGeometry(row[RESULT_GEOMETRY_KEY]);
+    if (!geo) return;
+    const temp = L.geoJSON(geo);
+    const bounds = temp.getBounds();
+    if (bounds.isValid()) state.map.fitBounds(bounds.pad(0.25));
   }
 
-  function focusMapOnRow(row) {
-    const coords = wktToLatLngs(row[RESULT_GEOMETRY_KEY]);
-    if (!coords.length || !state.map) return;
-    const bounds = L.latLngBounds(coords.flat());
-    state.map.fitBounds(bounds.pad(0.2));
-  }
-
-  function wktToLatLngs(wkt) {
-    const text = String(wkt || '').trim();
-    if (!text) return [];
-    const multipolyMatch = text.match(/^MULTIPOLYGON\s*\(\(\((.*)\)\)\)$/i);
-    const polyMatch = text.match(/^POLYGON\s*\(\((.*)\)\)$/i);
-    let body = multipolyMatch ? multipolyMatch[1] : (polyMatch ? polyMatch[1] : '');
-    if (!body) return [];
-    const rings = body.split(')),((');
-    return rings.map((ring) => ring.split(',').map((pair) => {
-      const [lng, lat] = pair.trim().split(/\s+/).map(Number);
-      return [lat, lng];
-    }));
+  function parseWktGeometry(wkt) {
+    if (!wkt || typeof wellknown === 'undefined') return null;
+    try {
+      return wellknown.parse(wkt);
+    } catch (e) {
+      console.error('WKT parse error', e);
+      return null;
+    }
   }
 
   function exportExcel() {
-    const cols = resultColumnsOrdered().filter((c) => c !== RESULT_GEOMETRY_KEY);
-    const rows = [cols.join('\t'), ...state.results.map((row) => cols.map((c) => sanitizeText(row[c])).join('\t'))];
-    const blob = new Blob([rows.join('\n')], { type: 'text/tab-separated-values;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'result.tsv';
-    a.click();
-    URL.revokeObjectURL(url);
+    const rows = state.scoredResults.map((row) => {
+      const out = {};
+      [...(APP.result.columns || []), ...EXTRA_RESULT_COLUMNS].forEach((col) => { out[col] = row[col] ?? ''; });
+      return out;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Результат анализа');
+    XLSX.writeFile(wb, 'Результат_анализа.xlsx');
   }
 
   function resetAll() {
-    state.tool = APP.toolOptions?.[0]?.code || 'predictive';
-    state.mainDataset = 'ogh';
-    state.compareDatasets = ['sok', 'mr'];
-    state.parameters = {
-      serviceLifeMode: 'normative',
-      serviceLifeSingle: '5',
-      serviceLifeMixed: {},
-      uncoveredMode: 'single',
-      uncoveredSingle: { operator: 'gt', from: '15', to: '' },
-      uncoveredMixed: {},
-      volume: { operator: 'between', from: '', to: '' },
-      cost: { operator: 'between', from: '', to: '' }
-    };
-    APP.asphaltWorkTypes?.forEach((work) => {
-      state.parameters.serviceLifeMixed[work] = '5';
-      state.parameters.uncoveredMixed[work] = { operator: 'gt', from: '15', to: '' };
-    });
-    state.baseWeights = { ...(APP.baseWeights || {}) };
-    state.customPriorityRules = [createPriorityRule()];
-    state.results = [];
-    state.activeRowIndex = null;
-    DATASET_ORDER.forEach((code) => state.criteria[code] = { allData: false, rows: [defaultRow(code)] });
-    $('resultsSection').classList.add('hidden');
-    $('toolSection').classList.remove('hidden');
+    $('toolSection').classList.remove('is-collapsed');
     $('datasetsSection').classList.add('hidden');
+    $('datasetsSection').classList.remove('is-collapsed');
     $('filtersSection').classList.add('hidden');
+    $('resultsSection').classList.add('hidden');
     $('criteriaCard').classList.remove('hidden');
-    $('parametersCard').classList.add('hidden');
-    $('reviewCard').classList.add('hidden');
-    state.currentStep = 1;
-    renderAll();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function renderAll() {
+    $('launchCard').classList.remove('hidden');
+    $('loadingSection').classList.add('hidden');
+    resetState();
     renderStepper();
     renderToolOptions();
     renderDatasetPickers();
-    renderCriteria();
-    renderParameters();
-    renderReview();
-    updateToolHeader();
+    renderFilterBlocks();
+    renderBaseWeights();
+    renderPriorityPanel();
+    if (state.mapLayers?.length) {
+      state.mapLayers.forEach((layer) => layer.remove());
+      state.mapLayers = [];
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function formatNumber(value) {
-    const n = Number(value || 0);
-    return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n);
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
   }
 
-  function formatCurrency(value) {
-    const n = Number(value || 0);
-    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(n);
+  function escapeAttr(value) {
+    return escapeHtml(value).replaceAll('\n', ' ');
   }
 
-  function escapeId(str) {
-    return String(str).replace(/[^a-zA-Z0-9\-_:.]/g, '_');
-  }
-
-  function sanitizeAttr(value) {
-    return String(value ?? '').replace(/"/g, '&quot;');
-  }
-
-  function sanitizeHtml(value) {
-    return String(value ?? '').replace(/[&<>"]/g, (s) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[s]));
-  }
-
-  function toDateInput(value) {
+  function toInputDate(value) {
+    if (!value) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
     const d = normalizeDate(value);
     if (!d) return '';
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const day = String(d.getDate()).padStart(2,'0');
-    return `${y}-${m}-${day}`;
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${month}-${day}`;
   }
 
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.dropdown')) {
-      document.querySelectorAll('.dropdown-panel').forEach((panel) => panel.classList.add('hidden'));
-    }
-  });
+  function fromInputDateIfNeeded(datasetCode, fieldCode, value) {
+    const meta = fieldMeta(datasetCode, fieldCode);
+    if (meta.type !== 'date') return value;
+    if (!value) return '';
+    const [y, m, d] = value.split('-');
+    return `${d}.${m}.${y} 00:00:00`;
+  }
 
-  initState();
-  renderAll();
-  bindGlobalEvents();
+  init();
 })();
