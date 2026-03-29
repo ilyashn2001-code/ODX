@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/26334427/README.md)
+[README.md](https://github.com/user-attachments/files/26334601/README.md)
 [README.md](https://github.com/user-attachments/files/26304961/README.md)
 # Центр геоаналитических инструментов
 
