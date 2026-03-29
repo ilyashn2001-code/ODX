@@ -1082,7 +1082,7 @@ function renderPriorityRule(rule) {
         <label class="radio-line"><input type="radio" name="serviceLifeMode" value="normative" ${state.parameters.serviceLifeMode==='normative'?'checked':''}> По утверждённой нормативке</label>
         <label class="radio-line"><input type="radio" name="serviceLifeMode" value="single" ${state.parameters.serviceLifeMode==='single'?'checked':''}> Один срок для всех работ</label>
         <label class="radio-line"><input type="radio" name="serviceLifeMode" value="exceptions" ${state.parameters.serviceLifeMode==='exceptions'?'checked':''}> Исключения по отдельным видам работ</label>
-        ${state.parameters.serviceLifeMode==='single' ? `<label class="field top-space"><span class="field-label">Срок для всех работ</span><select id="serviceLifeSingle"><option value="5" ${state.parameters.serviceLifeSingle==='5'?'selected':''}>5 лет</option><option value="10" ${state.parameters.serviceLifeSingle==='10'?'selected':''}>10 лет</option><option value="15" ${state.parameters.serviceLifeSingle==='15'?'selected':''}>15 лет</option></select></label>` : ''}
+        ${state.parameters.serviceLifeMode==='single' ? `<label class="field top-space"><span class="field-label">Срок для всех работ</span><input type="number" id="serviceLifeSingle" min="1" step="1" value="${escapeAttr(state.parameters.serviceLifeSingle || '')}" placeholder="Например, 7"></label>` : ''}
         ${state.parameters.serviceLifeMode==='exceptions' ? `
           <div class="stack top-space" id="serviceLifeExceptionsBox">
             ${(state.parameters.serviceLifeExceptions||[]).map((item, idx) => `
@@ -1146,7 +1146,7 @@ function renderPriorityRule(rule) {
     document.querySelectorAll('input[name="serviceLifeMode"]').forEach((el) => el.addEventListener('change', (e) => {
       state.parameters.serviceLifeMode = e.target.value; renderParametersPanel();
     }));
-    $('serviceLifeSingle')?.addEventListener('change', (e) => state.parameters.serviceLifeSingle = e.target.value);
+    $('serviceLifeSingle')?.addEventListener('input', (e) => state.parameters.serviceLifeSingle = e.target.value);
     $('addServiceLifeExceptionBtn')?.addEventListener('click', () => {
       state.parameters.serviceLifeExceptions.push({work: ASPHALT_WORK_TYPES[0], years: '5'}); renderParametersPanel();
     });
