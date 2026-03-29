@@ -16,7 +16,7 @@
       <div>
         <div class="eyebrow">МосДата · аналитический прототип</div>
         <h1>Центр геоаналитических инструментов</h1>
-        <p class="subtitle">Сценарий выбора инструмента, настройки наборов, задания критериев и просмотра итогового реестра по реальным атрибутам из CSV.</p>
+        
       </div>
       <div class="hero-badge-wrap">
         <div class="hero-badge">
@@ -37,12 +37,12 @@
           <p>Сначала выберите сценарий. Для рабочего кейса используйте инструмент предиктивного анализа.</p>
         </div>
       </div>
-      <div class="tool-picker">
+      <div class="tool-picker compact-one">
         <label class="field">
           <span class="field-label">Что вы хотите сделать</span>
           <select id="toolSelect"></select>
         </label>
-        <div id="toolDescription" class="info-note"></div>
+        
       </div>
       <div class="toolbar-line top-space">
         <button id="goToDatasetsBtn" class="btn btn-primary">Далее</button>
@@ -65,7 +65,7 @@
               <p></p>
             </div>
           </div>
-          <div id="mainDatasetPicker" class="stack"></div>
+          <div id="mainDatasetPicker"></div>
         </article>
 
         <article class="dataset-card accent-compare">
@@ -76,7 +76,7 @@
               <p></p>
             </div>
           </div>
-          <div id="compareDatasetPicker" class="stack"></div>
+          <div id="compareDatasetPicker"></div>
         </article>
       </div>
 
@@ -96,34 +96,41 @@
         <div id="filtersBlocks" class="filters-blocks"></div>
       </section>
 
-      <section id="priorityCard" class="card collapsible-card">
-        <div class="card-head">
-          <div>
-            <h2>Шаг 4. Приоритизация</h2>
-            <p>Настройте базовые веса и при необходимости добавьте собственные правила. В этой версии блок сохранён как пользовательская настройка и не влияет на итоговую таблицу.</p>
-          </div>
-          <label class="switch">
-            <input id="weightsToggle" type="checkbox">
-            <span class="switch-ui"></span>
-          </label>
-        </div>
-        <div class="chips-row compact-chips" id="baseWeightsChips"></div>
-        <div id="weightsPanel" class="weights-panel hidden"></div>
+      
+      <div class="toolbar-line top-space">
+        <button id="goToParametersBtn" class="btn btn-primary">Далее</button>
+      </div>
       </section>
 
-      <section id="launchCard" class="card launch-card">
+      <section id="parametersCard" class="card hidden">
         <div class="card-head">
           <div>
-            <h2>Шаг 5. Запуск расчёта</h2>
-            <p>Фильтрация подготавливает пользовательский сценарий, а таблица результата и карта строятся по файлу результата анализа.</p>
+            <h2>Шаг 4. Параметры результата</h2>
+            <p>Точно настройте, какие объекты должны попасть в итоговый анализ: срок службы, процент непокрытой площади, объём работ и стоимость.</p>
           </div>
         </div>
+        <div id="parametersPanel" class="parameter-grid"></div>
         <div class="toolbar-line top-space">
-          <button id="runAnalysisBtn" class="btn btn-primary">Запустить расчёт</button>
+          <button id="goToReviewBtn" class="btn btn-primary">Проверить конфигурацию</button>
+        </div>
+      </section>
+
+      <section id="reviewCard" class="card hidden">
+        <div class="card-head">
+          <div>
+            <h2>Шаг 5. Проверка сценария</h2>
+            <p>Проверьте выбранные шаги перед запуском. Можно вернуться к любому этапу — заполнение сохранится.</p>
+          </div>
+        </div>
+        <div id="reviewPanel" class="summary-setup-card"></div>
+        <div class="toolbar-line top-space">
+          <button id="backToCriteriaBtn" class="btn btn-secondary">Назад к критериям</button>
+          <button id="runAnalysisBtn" class="btn btn-primary">Получить анализ</button>
           <button id="resetBtn" class="btn btn-secondary">Сбросить всё</button>
         </div>
       </section>
     </section>
+
 
     <section id="loadingSection" class="card hidden">
       <div class="loading-title">Выполняется обработка</div>
@@ -133,6 +140,21 @@
     </section>
 
     <section id="resultsSection" class="stack hidden">
+      <section id="resultPriorityCard" class="card">
+        <div class="card-head">
+          <div>
+            <h2>Приоритизация результата</h2>
+            <p>Системные приоритеты заданы заранее. При необходимости можно включить редактирование и добавить собственные правила только по атрибутам результата.</p>
+          </div>
+          <label class="switch">
+            <input id="priorityEditToggle" type="checkbox">
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+        <div class="chips-row compact-chips" id="baseWeightsChips"></div>
+        <div id="weightsPanel" class="weights-panel hidden"></div>
+      </section>
+
       <div id="resultSummaryCards" class="summary-grid"></div>
 
       <section class="card full-map-card">
