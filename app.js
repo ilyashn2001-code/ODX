@@ -264,6 +264,7 @@ function bindGlobalEvents() {
       $('filtersSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('goToParametersBtn').addEventListener('click', () => {
+      $('goToParametersBtn').closest('.toolbar-line')?.classList.add('hidden');
       $('criteriaCard').classList.add('hidden');
       $('parametersCard').classList.remove('hidden');
       $('reviewCard').classList.add('hidden');
@@ -273,6 +274,7 @@ function bindGlobalEvents() {
       $('parametersCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('goToReviewBtn').addEventListener('click', () => {
+      $('goToParametersBtn').closest('.toolbar-line')?.classList.add('hidden');
       $('parametersCard').classList.add('hidden');
       $('reviewCard').classList.remove('hidden');
       state.currentStep = 5;
@@ -281,6 +283,7 @@ function bindGlobalEvents() {
       $('reviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('backToCriteriaBtn')?.addEventListener('click', () => {
+      $('goToParametersBtn').closest('.toolbar-line')?.classList.remove('hidden');
       $('criteriaCard').classList.remove('hidden');
       $('parametersCard').classList.add('hidden');
       $('reviewCard').classList.add('hidden');
@@ -1246,6 +1249,7 @@ function renderPriorityRule(rule) {
 
     $('loadingSection').classList.add('hidden');
 
+    $('reviewCard')?.classList.add('hidden');
     $('resultsSection').classList.remove('hidden');
     state.currentStep = 5;
     renderStepper();
