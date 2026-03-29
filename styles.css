@@ -848,3 +848,6 @@ input:focus {
 @media (max-width: 900px){
   .parameter-grid,.review-grid{grid-template-columns:1fr}
 }
+
+.single-range{grid-template-columns:160px 1fr 0.2fr}
+.range-spacer{min-width:0}
