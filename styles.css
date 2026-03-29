@@ -806,10 +806,45 @@ input:focus {
 }
 
 
-body { overflow-x: hidden; }
-.card { overflow: hidden; }
-#resultsSection, #resultsSection .card, .table-wrap { min-width: 0; max-width: 100%; }
-.table-wrap { display:block; width:100%; overflow-x:auto; overflow-y:hidden; }
-.results-table { width: max-content; min-width: 1400px; max-width: none; }
-.full-map-card, .full-map-card .map-wrap { overflow: hidden; }
-#map { background: #eef3f8; }
+.tool-picker.compact-one{display:block;max-width:520px}
+.dataset-dropdown{position:relative}
+.dropdown-trigger{
+  width:100%;
+  min-height:48px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:12px 14px;
+  background:#fff;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.dropdown-trigger::after{content:"▾"; color:var(--muted); font-size:14px}
+.dataset-dropdown details[open] .dropdown-trigger{
+  border-color:#a9c9ff;
+  box-shadow:0 0 0 4px rgba(73,127,217,.12);
+}
+.dataset-dropdown .multi-dropdown{position:absolute; inset:auto 0 auto 0; top:calc(100% + 6px)}
+.parameter-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px}
+.parameter-box{
+  border:1px solid var(--border); border-radius:18px; background:#fbfdff; padding:16px;
+}
+.radio-line{display:flex; gap:8px; align-items:flex-start; margin-bottom:10px}
+.inline-range{display:grid; grid-template-columns:160px 1fr 1fr; gap:10px; align-items:end}
+.review-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+.review-box{border:1px solid var(--border); border-radius:18px; background:#fbfdff; padding:16px}
+.review-box h3{font-size:15px; margin-bottom:8px}
+.review-list{display:grid; gap:6px; color:var(--muted); font-size:14px}
+.priority-score-badge{display:inline-flex; min-width:72px; justify-content:center; padding:6px 10px; border-radius:999px; font-weight:800}
+.priority-score-badge.high{background:#fdeaea; color:#b42318}
+.priority-score-badge.medium{background:#fff4e5; color:#b26a00}
+.priority-score-badge.low{background:#eaf7ee; color:#1d7a37}
+#resultsSection{min-width:0; overflow:hidden}
+.table-wrap{max-width:100%; overflow:auto}
+.results-table{width:max-content; min-width:1400px}
+.results-table th,.results-table td{white-space:normal}
+@media (max-width: 900px){
+  .parameter-grid,.review-grid{grid-template-columns:1fr}
+}
