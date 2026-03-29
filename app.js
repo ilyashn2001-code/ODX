@@ -53,9 +53,7 @@
       operator: defaultOperator(first?.type || 'text'),
       value1: '',
       value2: '',
-      negated: false,
-      join: 'AND',
-      clusterId: null
+      negated: false
     };
   }
 
@@ -74,7 +72,7 @@
 
   function initState() {
     DATASET_ORDER.forEach((code) => {
-      state.criteria[code] = { allData: false, rows: [defaultRow(code)], selectedRowIds: [], clusterModes: {} };
+      state.criteria[code] = { allData: false, rows: [defaultRow(code)] };
     });
     APP.asphaltWorkTypes?.forEach((work) => {
       state.parameters.serviceLifeMixed[work] = '5';
@@ -88,11 +86,11 @@
   }
 
   function availableCompareDatasets() {
-    return DATASET_ORDER.slice();
+    return DATASET_ORDER.filter((c) => c !== state.mainDataset);
   }
 
   function activeDatasetCodes() {
-    return [...new Set([state.mainDataset, ...state.compareDatasets.filter(Boolean)])];
+    return [state.mainDataset, ...state.compareDatasets.filter(Boolean)];
   }
 
   function sanitizeText(value) {
@@ -161,7 +159,6 @@
     $('resetBtn').addEventListener('click', resetAll);
     $('newAnalysisBtn').addEventListener('click', resetAll);
     $('exportBtn').addEventListener('click', exportExcel);
-    $('priorityEditToggle')?.addEventListener('change', (e) => { state.priorityEditable = e.target.checked; renderPriorityPanel(); });
     $('toolSelect').addEventListener('change', (e) => {
       state.tool = e.target.value;
       updateToolHeader();
@@ -309,6 +306,7 @@
       placeholder: 'Выберите набор',
       onChange: (value) => {
         state.mainDataset = value;
+        state.compareDatasets = availableCompareDatasets().filter((code) => state.compareDatasets.includes(code));
         if (!state.compareDatasets.length) state.compareDatasets = availableCompareDatasets().slice(0, 1);
       }
     });
@@ -319,7 +317,7 @@
       options: availableCompareDatasets().map((code) => ({ value: code, label: DATASETS[code].title })),
       placeholder: 'Выберите наборы',
       onChange: (values) => {
-        state.compareDatasets = values;
+        state.compareDatasets = values.filter((code) => code !== state.mainDataset);
       }
     });
   }
@@ -328,7 +326,6 @@
     $('filtersBlocks').innerHTML = activeDatasetCodes().map((datasetCode) => renderCriteriaBlock(datasetCode)).join('');
     bindCriteriaEvents();
   }
-
 
   function renderCriteriaBlock(datasetCode) {
     const ds = DATASETS[datasetCode];
@@ -341,71 +338,32 @@
           <h3>${ds.title}</h3>
         </div>
         <div class="group-box">
-          <div class="group-head single-group-head">
-            <div class="group-title">Группа условий для набора</div>
-            <label class="radio-line">
-              <input type="checkbox" data-all-data="${datasetCode}" ${criteria.allData ? 'checked' : ''}>
-              Использовать все данные без фильтрации
-            </label>
-          </div>
+          <label class="radio-line top-space">
+            <input type="checkbox" data-all-data="${datasetCode}" ${criteria.allData ? 'checked' : ''}>
+            Использовать все данные без фильтрации
+          </label>
           <div class="criteria-toolbar ${criteria.allData ? 'hidden' : ''}">
             <button class="btn btn-secondary btn-small" data-add-criteria-row="${datasetCode}">Добавить условие</button>
-            <button class="btn btn-secondary btn-small" data-group-selected="${datasetCode}">Группировать выделенные</button>
-            <button class="btn btn-secondary btn-small" data-ungroup-selected="${datasetCode}">Разгруппировать</button>
           </div>
           <div class="stack ${criteria.allData ? 'hidden' : ''}">
-            ${renderCriteriaRows(datasetCode, criteria)}
+            ${criteria.rows.map((row) => renderCriteriaRow(datasetCode, row)).join('')}
           </div>
         </div>
       </section>
     `;
   }
 
-  function renderCriteriaRows(datasetCode, criteria) {
-    const rows = criteria.rows;
-    const html = [];
-    rows.forEach((row, index) => {
-      const prev = rows[index - 1];
-      const startsCluster = row.clusterId && (!prev || prev.clusterId !== row.clusterId);
-      if (startsCluster) html.push(renderClusterHeader(datasetCode, row));
-      html.push(renderCriteriaRow(datasetCode, row, index));
-    });
-    return html.join('');
-  }
-
-  function renderClusterHeader(datasetCode, row) {
-    const mode = state.criteria[datasetCode].clusterModes[row.clusterId] || 'OR';
-    return `
-      <div class="grouped-strip ${mode === 'NOT' ? 'negated' : ''}">
-        <div>
-          <div class="grouped-strip-title">Подгруппа</div>
-          <div class="option-note">Выделенные строки объединены в отдельное логическое условие.</div>
-        </div>
-        <label class="field">
-          <span class="field-label">Логика подгруппы</span>
-          <select data-cluster-mode="${row.clusterId}" data-dataset-code="${datasetCode}">
-            <option value="OR" ${mode === 'OR' ? 'selected' : ''}>ИЛИ</option>
-            <option value="AND" ${mode === 'AND' ? 'selected' : ''}>И</option>
-            <option value="NOT" ${mode === 'NOT' ? 'selected' : ''}>НЕ</option>
-          </select>
-        </label>
-      </div>
-    `;
-  }
-
-  function renderCriteriaRow(datasetCode, row, index) {
+  function renderCriteriaRow(datasetCode, row) {
     const meta = fieldMeta(datasetCode, row.field);
     const operators = operatorsFor(meta.type);
     const isBetween = row.operator === 'between';
-    const criteria = state.criteria[datasetCode];
-    const selected = criteria.selectedRowIds.includes(row.id);
-    const unitStart = isCriteriaUnitStart(criteria.rows, index);
     return `
-      <div class="row-filter ${selected ? 'row-selected' : ''} ${row.clusterId ? 'row-in-cluster' : ''} ${unitStart ? 'row-highlighted' : ''}">
-        <div class="row-select-box">
-          <input type="checkbox" data-row-select="${row.id}" data-dataset-code="${datasetCode}" ${selected ? 'checked' : ''}>
-        </div>
-        ${unitStart ? renderCriteriaJoinControl(datasetCode, row, index) : `<div class="logic-anchor">↳</div>`}
+      <div class="criteria-row" data-row-id="${row.id}">
+        <label class="field">
+          <span class="field-label">НЕ</span>
+          <button type="button" class="neg-pill ${row.negated ? 'active' : ''}" data-negate-row="${datasetCode}:${row.id}">${row.negated ? 'Включено' : 'Выключено'}</button>
+        </label>
+        <button type="button" class="icon-btn" data-remove-row="${datasetCode}:${row.id}" title="Удалить">🗑</button>
         <label class="field">
           <span class="field-label">Атрибут</span>
           <select data-row-field="${datasetCode}:${row.id}">
@@ -419,25 +377,24 @@
           </select>
         </label>
         <label class="field">
-          <span class="field-label">Значение</span>
-          ${isBetween ? `<div class="range-box">${renderValueControl(`criteria:${datasetCode}:${row.id}:value1`, meta, row.value1)}${renderValueControl(`criteria:${datasetCode}:${row.id}:value2`, meta, row.value2)}</div>` : renderValueControl(`criteria:${datasetCode}:${row.id}:value1`, meta, row.value1)}
+          <span class="field-label">${isBetween ? 'От' : 'Значение'}</span>
+          ${renderValueControl(`criteria:${datasetCode}:${row.id}:value1`, meta, row.value1)}
         </label>
-        <button type="button" class="icon-btn subtle-remove" data-remove-row="${datasetCode}:${row.id}" title="Удалить">✕</button>
+        <label class="field ${isBetween ? '' : 'hidden'}">
+          <span class="field-label">До</span>
+          ${renderValueControl(`criteria:${datasetCode}:${row.id}:value2`, meta, row.value2)}
+        </label>
       </div>
     `;
   }
 
-  function renderCriteriaJoinControl(datasetCode, row, index) {
-    if (index === 0) return `<div class="logic-anchor">Старт</div>`;
-    return `
-      <label class="field logic-field">
-        <span class="field-label">Связь</span>
-        <select data-row-join="${datasetCode}:${row.id}">
-          <option value="AND" ${row.join === 'AND' ? 'selected' : ''}>И</option>
-          <option value="OR" ${row.join === 'OR' ? 'selected' : ''}>ИЛИ</option>
-        </select>
-      </label>
-    `;
+  function renderValueControl(key, meta, value) {
+    if (meta.type === 'enum_multi' || meta.type === 'enum') {
+      return `<div id="${escapeId(key)}"></div>`;
+    }
+    if (meta.type === 'date') return `<input type="date" value="${toDateInput(value)}" data-simple-input="${key}">`;
+    if (meta.type === 'number') return `<input type="number" step="any" value="${sanitizeAttr(value)}" data-simple-input="${key}">`;
+    return `<input type="text" value="${sanitizeAttr(value)}" data-simple-input="${key}">`;
   }
 
   function bindCriteriaEvents() {
@@ -446,35 +403,21 @@
       state.criteria[code].rows.push(defaultRow(code));
       renderCriteria();
     }));
-    document.querySelectorAll('[data-group-selected]').forEach((btn) => btn.addEventListener('click', () => {
-      groupSelectedRows(btn.getAttribute('data-group-selected'));
-    }));
-    document.querySelectorAll('[data-ungroup-selected]').forEach((btn) => btn.addEventListener('click', () => {
-      ungroupSelectedRows(btn.getAttribute('data-ungroup-selected'));
-    }));
     document.querySelectorAll('[data-all-data]').forEach((input) => input.addEventListener('change', (e) => {
       const code = e.target.getAttribute('data-all-data');
       state.criteria[code].allData = e.target.checked;
       renderCriteria();
     }));
-    document.querySelectorAll('[data-row-select]').forEach((el) => el.addEventListener('change', (e) => {
-      const code = e.target.getAttribute('data-dataset-code');
-      const id = e.target.getAttribute('data-row-select');
-      const criteria = state.criteria[code];
-      if (e.target.checked) {
-        if (!criteria.selectedRowIds.includes(id)) criteria.selectedRowIds.push(id);
-      } else {
-        criteria.selectedRowIds = criteria.selectedRowIds.filter((x) => x !== id);
-      }
-      renderCriteria();
-    }));
     document.querySelectorAll('[data-remove-row]').forEach((btn) => btn.addEventListener('click', () => {
       const [code, rowId] = btn.getAttribute('data-remove-row').split(':');
-      const criteria = state.criteria[code];
-      criteria.rows = criteria.rows.filter((r) => r.id !== rowId);
-      criteria.selectedRowIds = criteria.selectedRowIds.filter((x) => x !== rowId);
-      if (!criteria.rows.length) criteria.rows = [defaultRow(code)];
-      cleanupClusters(criteria);
+      state.criteria[code].rows = state.criteria[code].rows.filter((r) => r.id !== rowId);
+      if (!state.criteria[code].rows.length) state.criteria[code].rows = [defaultRow(code)];
+      renderCriteria();
+    }));
+    document.querySelectorAll('[data-negate-row]').forEach((btn) => btn.addEventListener('click', () => {
+      const [code, rowId] = btn.getAttribute('data-negate-row').split(':');
+      const row = state.criteria[code].rows.find((r) => r.id === rowId);
+      row.negated = !row.negated;
       renderCriteria();
     }));
     document.querySelectorAll('[data-row-field]').forEach((el) => el.addEventListener('change', (e) => {
@@ -493,15 +436,6 @@
       row.value2 = '';
       renderCriteria();
     }));
-    document.querySelectorAll('[data-row-join]').forEach((el) => el.addEventListener('change', (e) => {
-      const [code, rowId] = e.target.getAttribute('data-row-join').split(':');
-      const row = state.criteria[code].rows.find((r) => r.id === rowId);
-      row.join = e.target.value;
-    }));
-    document.querySelectorAll('[data-cluster-mode]').forEach((el) => el.addEventListener('change', (e) => {
-      state.criteria[e.target.getAttribute('data-dataset-code')].clusterModes[e.target.getAttribute('data-cluster-mode')] = e.target.value;
-      renderCriteria();
-    }));
     document.querySelectorAll('[data-simple-input]').forEach((el) => el.addEventListener('input', (e) => {
       const parts = e.target.getAttribute('data-simple-input').split(':');
       if (parts[0] === 'criteria') {
@@ -512,12 +446,13 @@
         const [, ruleId, valueKey] = parts;
         const rule = state.customPriorityRules.find((r) => r.id === ruleId);
         rule[valueKey] = e.target.value;
-        if (state.results.length) recomputeResults();
+        recomputeResults();
       } else if (parts[0] === 'param') {
         handleParameterInput(parts.slice(1), e.target.value);
       }
     }));
 
+    // mount enum dropdowns after insertion
     activeDatasetCodes().forEach((datasetCode) => {
       state.criteria[datasetCode].rows.forEach((row) => {
         const meta = fieldMeta(datasetCode, row.field);
@@ -527,63 +462,15 @@
             selected: splitMulti(row.value1),
             options: (meta.options || []).map((v) => ({ value: v, label: sanitizeText(v) || v })),
             placeholder: 'Выберите значения',
-            onChange: (values) => { row.value1 = values.join('||'); }
+            onChange: (values) => {
+              row.value1 = values.join('||');
+            }
           });
         }
       });
     });
   }
 
-  function isCriteriaUnitStart(rows, index) {
-    if (index === 0) return true;
-    const current = rows[index];
-    const prev = rows[index - 1];
-    if (current.clusterId) return prev.clusterId !== current.clusterId;
-    return true;
-  }
-
-  function groupSelectedRows(datasetCode) {
-    const criteria = state.criteria[datasetCode];
-    const selectedRows = criteria.rows.filter((row) => criteria.selectedRowIds.includes(row.id));
-    if (selectedRows.length < 2) {
-      alert('Выделите минимум две строки для группировки.');
-      return;
-    }
-    const clusterId = cryptoId();
-    selectedRows.forEach((row) => { row.clusterId = clusterId; });
-    criteria.clusterModes[clusterId] = 'OR';
-    renderCriteria();
-  }
-
-  function ungroupSelectedRows(datasetCode) {
-    const criteria = state.criteria[datasetCode];
-    const selectedRows = criteria.rows.filter((row) => criteria.selectedRowIds.includes(row.id));
-    if (!selectedRows.length) {
-      alert('Выделите строки, которые нужно разгруппировать.');
-      return;
-    }
-    selectedRows.forEach((row) => { row.clusterId = null; });
-    cleanupClusters(criteria);
-    renderCriteria();
-  }
-
-  function cleanupClusters(criteria) {
-    const counts = {};
-    criteria.rows.forEach((row) => {
-      if (!row.clusterId) return;
-      counts[row.clusterId] = (counts[row.clusterId] || 0) + 1;
-    });
-    Object.keys(criteria.clusterModes).forEach((clusterId) => {
-      if (!counts[clusterId] || counts[clusterId] < 2) {
-        delete criteria.clusterModes[clusterId];
-        criteria.rows.forEach((row) => { if (row.clusterId === clusterId) row.clusterId = null; });
-      }
-    });
-  }
-
-  function splitMulti(value) {
-    return String(value || '').split('||').filter(Boolean);
-  }
   function splitMulti(value) {
     return String(value || '').split('||').filter(Boolean);
   }
@@ -749,9 +636,6 @@
     await showLoading('Отрисовка карты и таблицы...', 100);
 
     $('loadingSection').classList.add('hidden');
-    state.currentStep = 5;
-    renderStepper();
-    $('reviewCard').classList.remove('hidden');
     $('resultsSection').classList.remove('hidden');
     renderPriorityPanel();
     renderSummaryCards();
@@ -856,17 +740,9 @@
     await new Promise((resolve) => setTimeout(resolve, 220));
   }
 
-  
   function renderPriorityPanel() {
     $('baseWeightsChips').innerHTML = (APP.prioritySystemFields || []).map((field) => `<span class="chip">${field.label} — ${state.baseWeights[field.code] || 0}%</span>`).join('');
-    $('priorityEditToggle').checked = state.priorityEditable;
     $('weightsPanel').innerHTML = `
-      <div class="toolbar-line priority-toolbar-line">
-        <label class="radio-line">
-          <input type="checkbox" id="priorityEditToggleInner" ${state.priorityEditable ? 'checked' : ''}>
-          Включить редактирование
-        </label>
-      </div>
       <div class="stack">
         ${(APP.prioritySystemFields || []).map((field) => `
           <div class="weight-row">
@@ -874,7 +750,7 @@
               <div class="option-label">${field.label}</div>
               <div class="option-note">Системный атрибут из результата</div>
             </div>
-            <input type="number" min="0" max="100" value="${state.baseWeights[field.code] || 0}" data-base-weight="${field.code}" ${state.priorityEditable ? '' : 'disabled'}>
+            <input type="number" min="0" max="100" value="${state.baseWeights[field.code] || 0}" data-base-weight="${field.code}">
           </div>
         `).join('')}
       </div>
@@ -884,18 +760,13 @@
             <h3>Кастомные правила</h3>
             <p>Можно задать свой коэффициент только по атрибутам справочника результата.</p>
           </div>
-          <button class="btn btn-secondary btn-small" id="addPriorityRuleBtn" ${state.priorityEditable ? '' : 'disabled'}>Добавить правило</button>
+          <button class="btn btn-secondary btn-small" id="addPriorityRuleBtn">Добавить правило</button>
         </div>
         <div class="stack">
           ${state.customPriorityRules.map((rule) => renderPriorityRule(rule)).join('')}
         </div>
       </div>
     `;
-    $('priorityEditToggleInner')?.addEventListener('change', (e) => {
-      state.priorityEditable = e.target.checked;
-      $('priorityEditToggle').checked = state.priorityEditable;
-      renderPriorityPanel();
-    });
     $('weightsPanel').querySelectorAll('[data-base-weight]').forEach((input) => input.addEventListener('input', (e) => {
       state.baseWeights[e.target.getAttribute('data-base-weight')] = Number(e.target.value || 0);
       state.results = applyPriority(state.results);
@@ -938,25 +809,79 @@
       renderPriorityPanel();
       recomputeResults();
     }));
+    $('weightsPanel').querySelectorAll('[data-simple-input]').forEach((el) => el.addEventListener('input', (e) => {
+      const parts = e.target.getAttribute('data-simple-input').split(':');
+      const rule = state.customPriorityRules.find((r) => r.id === parts[1]);
+      rule[parts[2]] = e.target.value;
+      recomputeResults();
+    }));
+    $('weightsPanel').querySelectorAll('[data-rule-coeff]').forEach((el) => el.addEventListener('input', (e) => {
+      const rule = state.customPriorityRules.find((r) => r.id === e.target.getAttribute('data-rule-coeff'));
+      rule.coefficient = Number(e.target.value || 0);
+      recomputeResults();
+    }));
     $('weightsPanel').querySelectorAll('[data-rule-remove]').forEach((el) => el.addEventListener('click', (e) => {
-      const id = e.target.getAttribute('data-rule-remove');
-      state.customPriorityRules = state.customPriorityRules.filter((r) => r.id !== id);
+      state.customPriorityRules = state.customPriorityRules.filter((r) => r.id !== e.target.getAttribute('data-rule-remove'));
       if (!state.customPriorityRules.length) state.customPriorityRules = [createPriorityRule()];
       renderPriorityPanel();
       recomputeResults();
     }));
-    $('weightsPanel').querySelectorAll('[data-simple-input]').forEach((el) => el.addEventListener('input', (e) => {
-      const parts = e.target.getAttribute('data-simple-input').split(':');
-      if (parts[0] === 'rule') {
-        const [, ruleId, valueKey] = parts;
-        const rule = state.customPriorityRules.find((r) => r.id === ruleId);
-        rule[valueKey] = e.target.value;
-        recomputeResults();
-      }
-    }));
   }
 
-function renderSummaryCards() {
+  function renderPriorityRule(rule) {
+    const fields = resultFieldOptions();
+    const meta = fields.find((f) => f.code === rule.field) || { type: 'text' };
+    const isBetween = rule.operator === 'between';
+    return `
+      <div class="priority-rule-row">
+        <label class="field">
+          <span class="field-label">Атрибут</span>
+          <select data-rule-field="${rule.id}">
+            ${fields.map((f) => `<option value="${f.code}" ${f.code === rule.field ? 'selected' : ''}>${f.label}</option>`).join('')}
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Оператор</span>
+          <select data-rule-operator="${rule.id}">
+            ${operatorsFor(meta.type).map(([code, label]) => `<option value="${code}" ${code === rule.operator ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">${isBetween ? 'От' : 'Значение'}</span>
+          ${meta.type === 'enum' ? `<div id="${escapeId(`rule:${rule.id}:value1`)}"></div>` :
+            meta.type === 'number' ? `<input type="number" step="any" value="${sanitizeAttr(rule.value1)}" data-simple-input="rule:${rule.id}:value1">` :
+            `<input type="text" value="${sanitizeAttr(rule.value1)}" data-simple-input="rule:${rule.id}:value1">`}
+        </label>
+        <label class="field ${isBetween ? '' : 'hidden'}">
+          <span class="field-label">До</span>
+          <input type="number" step="any" value="${sanitizeAttr(rule.value2)}" data-simple-input="rule:${rule.id}:value2">
+        </label>
+        <label class="field">
+          <span class="field-label">Коэффициент</span>
+          <input type="number" value="${rule.coefficient}" data-rule-coeff="${rule.id}">
+        </label>
+        <button class="icon-btn" data-rule-remove="${rule.id}" title="Удалить">🗑</button>
+      </div>
+    `;
+  }
+
+  function recomputeResults() {
+    state.results = applyPriority(state.results.map((row) => {
+      const copy = { ...row };
+      delete copy['Приоритетный вес'];
+      delete copy['Причины приоритезации'];
+      return copy;
+    }));
+    renderSummaryCards();
+    renderTable();
+    renderMap();
+  }
+
+  function distinctResultValues(field) {
+    return [...new Set((APP.result?.rows || []).map((r) => r[field]).filter((v) => sanitizeText(v) !== ''))];
+  }
+
+  function renderSummaryCards() {
     const total = state.results.length;
     const totalCost = state.results.reduce((sum, item) => sum + (normalizeNumber(item['Примерная стоимость']) || 0), 0);
     const totalVolume = state.results.reduce((sum, item) => sum + (normalizeNumber(item['Примерный объём работ']) || 0), 0);
@@ -1001,7 +926,7 @@ function renderSummaryCards() {
       <tbody>
         ${state.results.map((row, index) => `
           <tr data-result-row="${index}" class="${state.activeRowIndex === index ? 'is-active' : ''}">
-            ${columns.map((col) => `<td>${renderCell(row[col], col)}</td>`).join('')}
+            ${columns.map((col) => `<td>${renderCell(row[col])}</td>`).join('')}
           </tr>`).join('')}
       </tbody>
     `;
@@ -1013,12 +938,8 @@ function renderSummaryCards() {
     }));
   }
 
-  function renderCell(value, column) {
+  function renderCell(value) {
     const clean = String(value ?? '');
-    if (column === 'Приоритетный вес') {
-      const score = Number(clean || 0);
-      return `<span class="priority-weight-badge" style="background:${getPriorityColor(score)}">${sanitizeHtml(clean || '0')}</span>`;
-    }
     if (clean.includes('<span')) return clean;
     return sanitizeHtml(clean || '—');
   }
@@ -1060,7 +981,6 @@ function renderSummaryCards() {
     } else {
       state.map.setView([55.75, 37.62], 10);
     }
-    setTimeout(() => state.map && state.map.invalidateSize(), 80);
     renderMapLegend();
   }
 
@@ -1123,10 +1043,9 @@ function renderSummaryCards() {
     });
     state.baseWeights = { ...(APP.baseWeights || {}) };
     state.customPriorityRules = [createPriorityRule()];
-    state.priorityEditable = false;
     state.results = [];
     state.activeRowIndex = null;
-    DATASET_ORDER.forEach((code) => state.criteria[code] = { allData: false, rows: [defaultRow(code)], selectedRowIds: [], clusterModes: {} });
+    DATASET_ORDER.forEach((code) => state.criteria[code] = { allData: false, rows: [defaultRow(code)] });
     $('resultsSection').classList.add('hidden');
     $('toolSection').classList.remove('hidden');
     $('datasetsSection').classList.add('hidden');
