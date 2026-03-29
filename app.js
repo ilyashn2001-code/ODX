@@ -10,14 +10,14 @@
     mr: { code: 'mr', title: APP.datasets?.mr?.title || 'Набор благоустройства (МР)', short: 'МР' }
   };
   const DATASET_ORDER = ['ogh', 'sok', 'mr'];
-  const STEPS = ['Инструмент', 'Наборы', 'Фильтры', 'Приоритизация', 'Результат'];
+  const STEPS = ['Инструмент', 'Наборы', 'Критерии', 'Параметры', 'Проверка'];
   const RESULT_GEOMETRY_KEY = 'Геометрия неблагоустроенной территории';
   const EXTRA_RESULT_COLUMNS = ['Примерный объём работ', 'Примерная стоимость'];
   const BASE_WEIGHT_CHIPS = [
-    { label: 'Процент покрытия', value: '35%' },
-    { label: 'Давность ремонта', value: '25%' },
-    { label: 'Ориентировочная стоимость', value: '20%' },
-    { label: 'Рекомендуемый объём работ', value: '20%' }
+    { label: 'Давность ремонта', value: 'системно' },
+    { label: 'Процент непокрытой площади', value: 'системно' },
+    { label: 'Примерная стоимость', value: 'системно' },
+    { label: 'Примерный объём работ', value: 'системно' }
   ];
   const ASPHALT_WORK_TYPES = [
     'Замена покрытия асфальтобетонного проезда в рамках благоустройства территории',
@@ -38,7 +38,18 @@
     currentStep: 1,
     map: null,
     mapLayers: [],
-    activeRowIndex: null
+    activeRowIndex: null,
+    priorityEditable: false,
+    parameters: {
+      serviceLifeMode: 'normative',
+      serviceLifeSingle: '5',
+      serviceLifeExceptions: [],
+      uncoveredMode: 'single',
+      uncoveredSingle: { operator: 'gt', from: '15', to: '' },
+      uncoveredExceptions: [],
+      volume: { operator: 'between', from: '', to: '' },
+      cost: { operator: 'between', from: '', to: '' }
+    }
   };
 
   function cryptoId() {
@@ -160,7 +171,7 @@
   }
 
   function activeDatasetCodes() {
-    return [state.mainDataset, ...state.compareDatasets];
+    return [...new Set([state.mainDataset, ...state.compareDatasets])];
   }
 
 
@@ -188,7 +199,7 @@
   function resetState() {
     state.tool = 'predictive';
     state.mainDataset = 'ogh';
-    state.compareDatasets = ['sok', 'mr'];
+    state.compareDatasets = ['ogh', 'sok', 'mr'];
     state.filters = {
       ogh: createGroup('ogh'),
       sok: createGroup('sok'),
@@ -196,7 +207,18 @@
     };
     state.selections = { ogh: [], sok: [], mr: [] };
     state.useCustomWeights = false;
+    state.priorityEditable = false;
     state.priorityRules = [createPriorityRule('result')];
+    state.parameters = {
+      serviceLifeMode: 'normative',
+      serviceLifeSingle: '5',
+      serviceLifeExceptions: [],
+      uncoveredMode: 'single',
+      uncoveredSingle: { operator: 'gt', from: '15', to: '' },
+      uncoveredExceptions: [],
+      volume: { operator: 'between', from: '', to: '' },
+      cost: { operator: 'between', from: '', to: '' }
+    };
     state.results = [];
     state.scoredResults = [];
     state.currentStep = 1;
@@ -211,13 +233,15 @@
     renderDatasetPickers();
     renderFilterBlocks();
     renderBaseWeights();
-    renderPriorityPanel();
+    renderParametersPanel();
+    renderReviewPanel();
     renderMapLegend();
     bindGlobalEvents();
     updateToolHeader();
   }
 
-  function bindGlobalEvents() {
+  
+function bindGlobalEvents() {
     $('toolSelect').addEventListener('change', (e) => {
       state.tool = e.target.value;
       updateToolHeader();
@@ -232,22 +256,44 @@
     $('goToFiltersBtn').addEventListener('click', () => {
       $('datasetsSection').classList.add('is-collapsed');
       $('filtersSection').classList.remove('hidden');
+      $('parametersCard').classList.add('hidden');
+      $('reviewCard').classList.add('hidden');
       state.currentStep = 3;
       renderStepper();
       renderFilterBlocks();
-      renderPriorityPanel();
       $('filtersSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
-    $('weightsToggle').addEventListener('change', (e) => {
+    $('goToParametersBtn').addEventListener('click', () => {
+      $('parametersCard').classList.remove('hidden');
+      $('reviewCard').classList.add('hidden');
+      state.currentStep = 4;
+      renderStepper();
+      renderParametersPanel();
+      $('parametersCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('goToReviewBtn').addEventListener('click', () => {
+      $('reviewCard').classList.remove('hidden');
+      state.currentStep = 5;
+      renderStepper();
+      renderReviewPanel();
+      $('reviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('backToCriteriaBtn')?.addEventListener('click', () => {
+      state.currentStep = 3;
+      renderStepper();
+      $('criteriaCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('priorityEditToggle')?.addEventListener('change', (e) => {
+      state.priorityEditable = e.target.checked;
       state.useCustomWeights = e.target.checked;
-      $('weightsPanel').classList.toggle('hidden', !state.useCustomWeights);
-      if (state.results.length) recomputePriorities();
+      renderPriorityPanel();
     });
     $('runAnalysisBtn').addEventListener('click', runAnalysis);
     $('resetBtn').addEventListener('click', resetAll);
     $('newAnalysisBtn').addEventListener('click', resetAll);
     $('exportBtn').addEventListener('click', exportExcel);
   }
+
 
   function renderStepper() {
     $('stepper').innerHTML = STEPS.map((title, index) => {
@@ -265,17 +311,50 @@
   function updateToolHeader() {
     const active = TOOL_OPTIONS.find((item) => item.code === state.tool);
     $('activeToolBadge').textContent = active?.title || 'Не выбран';
-    $('toolDescription').textContent = active?.description || '';
+if ($('toolDescription')) $('toolDescription').textContent = active?.description || '';
   }
 
-  function renderDatasetPickers() {
-    $('mainDatasetPicker').innerHTML = DATASET_ORDER.map((code) => datasetOption(code, true, state.mainDataset === code)).join('');
-    $('compareDatasetPicker').innerHTML = availableCompareDatasets().map((code) => datasetOption(code, false, state.compareDatasets.includes(code))).join('');
+  
+function renderDatasetPickers() {
+    const mainSummary = DATASETS[state.mainDataset]?.title || 'Выберите набор';
+    $('mainDatasetPicker').innerHTML = `
+      <div class="dataset-dropdown">
+        <details>
+          <summary class="dropdown-trigger">${escapeHtml(mainSummary)}</summary>
+          <div class="multi-dropdown">
+            <div class="multi-options">
+              ${DATASET_ORDER.map((code) => `
+                <label class="multi-option">
+                  <input type="radio" name="mainDataset" value="${code}" ${state.mainDataset === code ? 'checked' : ''}>
+                  <span>${escapeHtml(DATASETS[code].title)}</span>
+                </label>`).join('')}
+            </div>
+          </div>
+        </details>
+      </div>
+    `;
+
+    const compareSelected = state.compareDatasets.length ? state.compareDatasets.map((c) => DATASETS[c].short).join(', ') : 'Выберите наборы';
+    $('compareDatasetPicker').innerHTML = `
+      <div class="dataset-dropdown">
+        <details>
+          <summary class="dropdown-trigger">${escapeHtml(compareSelected)}</summary>
+          <div class="multi-dropdown">
+            <div class="multi-options">
+              ${DATASET_ORDER.map((code) => `
+                <label class="multi-option">
+                  <input type="checkbox" name="compareDataset" value="${code}" ${state.compareDatasets.includes(code) ? 'checked' : ''}>
+                  <span>${escapeHtml(DATASETS[code].title)}</span>
+                </label>`).join('')}
+            </div>
+          </div>
+        </details>
+      </div>
+    `;
 
     document.querySelectorAll('input[name="mainDataset"]').forEach((input) => {
       input.addEventListener('change', (e) => {
         state.mainDataset = e.target.value;
-        state.compareDatasets = availableCompareDatasets();
         renderDatasetPickers();
         renderFilterBlocks();
       });
@@ -289,24 +368,15 @@
         } else {
           state.compareDatasets = state.compareDatasets.filter((item) => item !== code);
         }
+        if (!state.compareDatasets.length) state.compareDatasets = [state.mainDataset];
+        renderDatasetPickers();
         renderFilterBlocks();
       });
     });
   }
 
-  function datasetOption(code, radio, checked) {
-    const meta = DATASETS[code];
-    const rowsCount = datasetMeta(code).rows.length;
-    return `
-      <label class="dataset-option">
-        <input type="${radio ? 'radio' : 'checkbox'}" name="${radio ? 'mainDataset' : 'compareDataset'}" value="${code}" ${checked ? 'checked' : ''}>
-        <div>
-          <div class="dataset-option-title">${meta.title}</div>
-          
-        </div>
-      </label>
-    `;
-  }
+  function datasetOption(code, radio, checked) { return ''; }
+
 
   function renderFilterBlocks() {
     $('filtersBlocks').innerHTML = activeDatasetCodes().map((code) => renderFilterBlock(code)).join('');
@@ -780,12 +850,12 @@
   }
 
   function renderPriorityPanel() {
-    $('weightsPanel').classList.toggle('hidden', !state.useCustomWeights);
-    $('weightsToggle').checked = state.useCustomWeights;
+    $('weightsPanel').classList.toggle('hidden', !state.priorityEditable);
+    if ($('priorityEditToggle')) $('priorityEditToggle').checked = state.priorityEditable;
     $('weightsPanel').innerHTML = `
       <div class="priority-tools">
-        <div class="helper-inline">Можно вернуть базовую схему приоритизации и при необходимости добавить свои правила: набор → атрибут → условие → коэффициент.</div>
-        <button class="btn btn-secondary btn-small" id="addPriorityRuleBtn">Добавить правило</button>
+        <div class="helper-inline">Можно добавить собственные правила только по атрибутам справочника результата.</div>
+        <button class="btn btn-secondary btn-small" id="addPriorityRuleBtn" ${!state.priorityEditable ? "disabled" : ""}>Добавить правило</button>
       </div>
       <div class="stack compact-stack">
         ${state.priorityRules.map((rule) => renderPriorityRule(rule)).join('')}
@@ -854,38 +924,30 @@
     });
   }
 
-  function renderPriorityRule(rule) {
-    const fields = resultColumnsForRule(rule.datasetCode);
+  
+function renderPriorityRule(rule) {
+    const fields = resultColumnsForRule('result');
     const meta = ruleFieldMeta(rule);
     return `
       <div class="priority-rule">
         <label class="field">
-          <span class="field-label">Набор</span>
-          <select data-priority-dataset="${rule.id}" data-rule-id="${rule.id}">
-            <option value="result" ${rule.datasetCode === 'result' ? 'selected' : ''}>Результат анализа</option>
-            <option value="ogh" ${rule.datasetCode === 'ogh' ? 'selected' : ''}>Набор ОГХ</option>
-            <option value="sok" ${rule.datasetCode === 'sok' ? 'selected' : ''}>Набор благоустройства (СОК)</option>
-            <option value="mr" ${rule.datasetCode === 'mr' ? 'selected' : ''}>Набор благоустройства (МР)</option>
-          </select>
-        </label>
-        <label class="field">
           <span class="field-label">Атрибут</span>
-          <select data-priority-field="${rule.id}" data-rule-id="${rule.id}">
+          <select data-priority-field="${rule.id}" data-rule-id="${rule.id}" ${!state.priorityEditable ? 'disabled' : ''}>
             ${fields.map((field) => `<option value="${field.code}" ${field.code === rule.field ? 'selected' : ''}>${field.label || field.code}</option>`).join('')}
           </select>
         </label>
         <label class="field">
           <span class="field-label">Условие</span>
-          <select data-priority-operator="${rule.id}" data-rule-id="${rule.id}">
+          <select data-priority-operator="${rule.id}" data-rule-id="${rule.id}" ${!state.priorityEditable ? 'disabled' : ''}>
             ${operatorsFor(meta.type).map(([code, label]) => `<option value="${code}" ${code === rule.operator ? 'selected' : ''}>${label}</option>`).join('')}
           </select>
         </label>
         ${renderPriorityValue(rule, meta)}
         <label class="field">
           <span class="field-label">Коэффициент</span>
-          <input type="number" data-priority-coef="${rule.id}" data-rule-id="${rule.id}" value="${rule.coefficient}">
+          <input type="number" data-priority-coef="${rule.id}" data-rule-id="${rule.id}" value="${rule.coefficient}" ${!state.priorityEditable ? 'disabled' : ''}>
         </label>
-        <button class="criteria-remove" title="Удалить правило" data-priority-remove="${rule.id}">×</button>
+        <button class="criteria-remove" title="Удалить правило" data-priority-remove="${rule.id}" ${!state.priorityEditable ? 'disabled' : ''}>×</button>
       </div>
     `;
   }
@@ -1002,6 +1064,144 @@
     return rows.filter((record) => evaluateNode(root, record, datasetCode)).length;
   }
 
+
+  function renderParametersPanel() {
+    const node = $('parametersPanel');
+    if (!node) return;
+    node.innerHTML = `
+      <div class="parameter-box">
+        <h3>Нормативный срок службы</h3>
+        <label class="radio-line"><input type="radio" name="serviceLifeMode" value="normative" ${state.parameters.serviceLifeMode==='normative'?'checked':''}> По утверждённой нормативке</label>
+        <label class="radio-line"><input type="radio" name="serviceLifeMode" value="single" ${state.parameters.serviceLifeMode==='single'?'checked':''}> Один срок для всех работ</label>
+        <label class="radio-line"><input type="radio" name="serviceLifeMode" value="exceptions" ${state.parameters.serviceLifeMode==='exceptions'?'checked':''}> Исключения по отдельным видам работ</label>
+        ${state.parameters.serviceLifeMode==='single' ? `<label class="field top-space"><span class="field-label">Срок для всех работ</span><select id="serviceLifeSingle"><option value="5" ${state.parameters.serviceLifeSingle==='5'?'selected':''}>5 лет</option><option value="10" ${state.parameters.serviceLifeSingle==='10'?'selected':''}>10 лет</option><option value="15" ${state.parameters.serviceLifeSingle==='15'?'selected':''}>15 лет</option></select></label>` : ''}
+        ${state.parameters.serviceLifeMode==='exceptions' ? `
+          <div class="stack top-space" id="serviceLifeExceptionsBox">
+            ${(state.parameters.serviceLifeExceptions||[]).map((item, idx) => `
+              <div class="inline-range">
+                <label class="field"><span class="field-label">Вид работ</span><select data-slex-work="${idx}">${ASPHALT_WORK_TYPES.map(w=>`<option value="${escapeHtml(w)}" ${item.work===w?'selected':''}>${escapeHtml(w)}</option>`).join('')}</select></label>
+                <label class="field"><span class="field-label">Срок</span><select data-slex-years="${idx}"><option value="5" ${item.years==='5'?'selected':''}>5 лет</option><option value="10" ${item.years==='10'?'selected':''}>10 лет</option><option value="15" ${item.years==='15'?'selected':''}>15 лет</option></select></label>
+                <button class="btn btn-secondary btn-small" data-slex-remove="${idx}">Удалить</button>
+              </div>`).join('')}
+            <button class="btn btn-secondary btn-small" id="addServiceLifeExceptionBtn">Добавить правило</button>
+          </div>` : ''}
+      </div>
+      <div class="parameter-box">
+        <h3>Процент непокрытой площади</h3>
+        <label class="radio-line"><input type="radio" name="uncoveredMode" value="single" ${state.parameters.uncoveredMode==='single'?'checked':''}> Один фильтр для всех</label>
+        <label class="radio-line"><input type="radio" name="uncoveredMode" value="exceptions" ${state.parameters.uncoveredMode==='exceptions'?'checked':''}> Исключения по отдельным видам работ</label>
+        ${renderRangeControl('uncoveredSingle', state.parameters.uncoveredSingle, 'Порог')}
+        ${state.parameters.uncoveredMode==='exceptions' ? `
+          <div class="stack top-space">
+            ${(state.parameters.uncoveredExceptions||[]).map((item, idx) => `
+              <div class="inline-range">
+                <label class="field"><span class="field-label">Вид работ</span><select data-uex-work="${idx}">${ASPHALT_WORK_TYPES.map(w=>`<option value="${escapeHtml(w)}" ${item.work===w?'selected':''}>${escapeHtml(w)}</option>`).join('')}</select></label>
+                ${renderInlineRange('uex', idx, item)}
+                <button class="btn btn-secondary btn-small" data-uex-remove="${idx}">Удалить</button>
+              </div>`).join('')}
+            <button class="btn btn-secondary btn-small" id="addUncoveredExceptionBtn">Добавить правило</button>
+          </div>` : ''}
+      </div>
+      <div class="parameter-box">
+        <h3>Примерный объём работ</h3>
+        ${renderRangeControl('volume', state.parameters.volume, 'Диапазон')}
+      </div>
+      <div class="parameter-box">
+        <h3>Примерная стоимость</h3>
+        ${renderRangeControl('cost', state.parameters.cost, 'Диапазон')}
+      </div>
+    `;
+    bindParameterEvents();
+  }
+
+  function renderRangeControl(prefix, value, label) {
+    return `<div class="inline-range top-space">
+      <label class="field"><span class="field-label">${label}</span><select data-range-op="${prefix}">
+        <option value="gt" ${value.operator==='gt'?'selected':''}>Больше</option>
+        <option value="lt" ${value.operator==='lt'?'selected':''}>Меньше</option>
+        <option value="between" ${value.operator==='between'?'selected':''}>От-до</option>
+      </select></label>
+      <label class="field"><span class="field-label">${value.operator==='between'?'От':'Значение'}</span><input type="number" data-range-from="${prefix}" value="${escapeAttr(value.from||'')}"></label>
+      <label class="field"><span class="field-label">${value.operator==='between'?'До':' '}</span><input type="number" data-range-to="${prefix}" value="${escapeAttr(value.to||'')}" ${value.operator==='between'?'':'disabled'}></label>
+    </div>`;
+  }
+
+  function renderInlineRange(kind, idx, item) {
+    return `<label class="field"><span class="field-label">Условие</span><select data-${kind}-op="${idx}"><option value="gt" ${item.operator==='gt'?'selected':''}>Больше</option><option value="lt" ${item.operator==='lt'?'selected':''}>Меньше</option><option value="between" ${item.operator==='between'?'selected':''}>От-до</option></select></label>
+      <label class="field"><span class="field-label">От</span><input type="number" data-${kind}-from="${idx}" value="${escapeAttr(item.from||'')}"></label>
+      <label class="field"><span class="field-label">До</span><input type="number" data-${kind}-to="${idx}" value="${escapeAttr(item.to||'')}" ${item.operator==='between'?'':'disabled'}></label>`;
+  }
+
+  function bindParameterEvents() {
+    document.querySelectorAll('input[name="serviceLifeMode"]').forEach((el) => el.addEventListener('change', (e) => {
+      state.parameters.serviceLifeMode = e.target.value; renderParametersPanel();
+    }));
+    $('serviceLifeSingle')?.addEventListener('change', (e) => state.parameters.serviceLifeSingle = e.target.value);
+    $('addServiceLifeExceptionBtn')?.addEventListener('click', () => {
+      state.parameters.serviceLifeExceptions.push({work: ASPHALT_WORK_TYPES[0], years: '5'}); renderParametersPanel();
+    });
+    document.querySelectorAll('[data-slex-work]').forEach((el) => el.addEventListener('change', (e) => state.parameters.serviceLifeExceptions[Number(e.target.dataset.slexWork)].work = e.target.value));
+    document.querySelectorAll('[data-slex-years]').forEach((el) => el.addEventListener('change', (e) => state.parameters.serviceLifeExceptions[Number(e.target.dataset.slexYears)].years = e.target.value));
+    document.querySelectorAll('[data-slex-remove]').forEach((el) => el.addEventListener('click', () => { state.parameters.serviceLifeExceptions.splice(Number(el.dataset.slexRemove),1); renderParametersPanel(); }));
+
+    document.querySelectorAll('input[name="uncoveredMode"]').forEach((el) => el.addEventListener('change', (e) => { state.parameters.uncoveredMode = e.target.value; renderParametersPanel(); }));
+    bindRange('uncoveredSingle', state.parameters.uncoveredSingle);
+    bindRange('volume', state.parameters.volume);
+    bindRange('cost', state.parameters.cost);
+    $('addUncoveredExceptionBtn')?.addEventListener('click', () => { state.parameters.uncoveredExceptions.push({work: ASPHALT_WORK_TYPES[0], operator:'gt', from:'15', to:''}); renderParametersPanel(); });
+    document.querySelectorAll('[data-uex-work]').forEach((el) => el.addEventListener('change', (e) => state.parameters.uncoveredExceptions[Number(el.dataset.uexWork)].work = e.target.value));
+    document.querySelectorAll('[data-uex-op]').forEach((el) => el.addEventListener('change', (e) => { state.parameters.uncoveredExceptions[Number(el.dataset.uexOp)].operator = e.target.value; renderParametersPanel(); }));
+    document.querySelectorAll('[data-uex-from]').forEach((el) => el.addEventListener('input', (e) => state.parameters.uncoveredExceptions[Number(el.dataset.uexFrom)].from = e.target.value));
+    document.querySelectorAll('[data-uex-to]').forEach((el) => el.addEventListener('input', (e) => state.parameters.uncoveredExceptions[Number(el.dataset.uexTo)].to = e.target.value));
+    document.querySelectorAll('[data-uex-remove]').forEach((el) => el.addEventListener('click', () => { state.parameters.uncoveredExceptions.splice(Number(el.dataset.uexRemove),1); renderParametersPanel(); }));
+  }
+
+  function bindRange(prefix, target) {
+    document.querySelector(`[data-range-op="${prefix}"]`)?.addEventListener('change', (e) => { target.operator = e.target.value; renderParametersPanel(); });
+    document.querySelector(`[data-range-from="${prefix}"]`)?.addEventListener('input', (e) => target.from = e.target.value);
+    document.querySelector(`[data-range-to="${prefix}"]`)?.addEventListener('input', (e) => target.to = e.target.value);
+  }
+
+  function renderReviewPanel() {
+    const node = $('reviewPanel');
+    if (!node) return;
+    node.innerHTML = `
+      <div class="review-grid">
+        <div class="review-box">
+          <h3>Шаг 1. Инструмент</h3>
+          <div class="review-list"><div>${escapeHtml((TOOL_OPTIONS.find(t=>t.code===state.tool)||{}).title || '')}</div></div>
+        </div>
+        <div class="review-box">
+          <h3>Шаг 2. Наборы</h3>
+          <div class="review-list">
+            <div><strong>Анализируемый:</strong> ${escapeHtml(DATASETS[state.mainDataset].title)}</div>
+            <div><strong>Сравниваемые:</strong> ${state.compareDatasets.map(c=>escapeHtml(DATASETS[c].title)).join(', ')}</div>
+          </div>
+        </div>
+        <div class="review-box">
+          <h3>Шаг 3. Критерии</h3>
+          <div class="review-list">${activeDatasetCodes().map(code => `<div>${escapeHtml(DATASETS[code].short)}: ${state.filters[code].allData ? 'без фильтрации' : matchedCount(code)+' записей проходит условия'}</div>`).join('')}</div>
+        </div>
+        <div class="review-box">
+          <h3>Шаг 4. Параметры</h3>
+          <div class="review-list">
+            <div>Нормативный срок службы: ${escapeHtml(state.parameters.serviceLifeMode==='normative' ? 'по нормативке' : state.parameters.serviceLifeMode==='single' ? 'единый срок '+state.parameters.serviceLifeSingle+' лет' : 'исключения по видам работ')}</div>
+            <div>Процент непокрытой площади: ${escapeHtml(state.parameters.uncoveredMode==='single' ? describeRange(state.parameters.uncoveredSingle) : 'исключения по видам работ')}</div>
+            <div>Объём работ: ${escapeHtml(describeRange(state.parameters.volume))}</div>
+            <div>Стоимость: ${escapeHtml(describeRange(state.parameters.cost))}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function describeRange(x) {
+    if (!x) return '';
+    if (x.operator === 'between') return `от ${x.from || '—'} до ${x.to || '—'}`;
+    if (x.operator === 'gt') return `больше ${x.from || '—'}`;
+    if (x.operator === 'lt') return `меньше ${x.from || '—'}`;
+    return '';
+  }
+
   function runAnalysis() {
     $('loadingSection').classList.remove('hidden');
     $('loadingFill').style.width = '0%';
@@ -1034,16 +1234,16 @@
     recomputePriorities();
 
     $('loadingSection').classList.add('hidden');
+
     $('resultsSection').classList.remove('hidden');
     state.currentStep = 5;
     renderStepper();
+    renderBaseWeights();
+    renderPriorityPanel();
     renderSummaryCards();
     renderResultsTable();
     ensureMap();
     renderMap();
-    requestAnimationFrame(() => { if (state.map) state.map.invalidateSize(true); });
-    setTimeout(() => { if (state.map) state.map.invalidateSize(true); renderMap(); }, 250);
-    setTimeout(() => { if (state.map) state.map.invalidateSize(true); }, 700);
     $('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -1058,12 +1258,34 @@
     };
   }
 
-  function recomputePriorities() {
+  
+function recomputePriorities() {
     const rows = state.results.length ? state.results : ((APP.result?.rows || []).map((row, index) => ({ ...row, ...deriveEstimateFields(row), __index: index })));
-    state.scoredResults = rows
-      .slice()
-      .sort((a, b) => (a.__index ?? 0) - (b.__index ?? 0))
-      .map((row) => ({ ...row, __score: 0, __priorityBand: 'base' }));
+    state.scoredResults = rows.map((row) => {
+      const uncoveredPct = (() => {
+        const area = normalizeNumber(row['Площадь']) || 0;
+        const unc = normalizeNumber(row['Площадь неблагоустроенной территории']) || 0;
+        return area ? (unc / area) * 100 : 0;
+      })();
+      const repairAge = Math.max(1, 10 - (normalizeNumber(row['межремонтный срок']) || 0));
+      const cost = normalizeNumber(row['Примерная стоимость']) || 0;
+      const volume = normalizeNumber(row['Примерный объём работ']) || 0;
+      let score = repairAge * 2.5 + uncoveredPct * 0.35 + volume / 1500 + cost / 1000000;
+      const reasons = [
+        `Давность ремонта: ${repairAge}`,
+        `Процент непокрытой площади: ${uncoveredPct.toFixed(2)}`,
+        `Примерная стоимость: ${cost.toFixed(2)}`,
+        `Примерный объём работ: ${volume.toFixed(2)}`
+      ];
+      (state.priorityRules || []).forEach((rule) => {
+        if (evaluateCondition(row, rule.field, rule.operator, rule.value1, rule.value2, inferResultColumnType(rule.field))) {
+          score += Number(rule.coefficient) || 0;
+          reasons.push(`Пользовательское правило: ${rule.field}`);
+        }
+      });
+      const band = score >= 80 ? 'high' : score >= 55 ? 'medium' : 'low';
+      return { ...row, 'Давность ремонта': repairAge, 'Процент непокрытой площади': Number(uncoveredPct.toFixed(2)), __score: Number(score.toFixed(2)), __priorityBand: band, __reasons: reasons.join(' · ') };
+    }).sort((a,b)=>b.__score-a.__score);
     if (state.results.length) {
       renderSummaryCards();
       renderResultsTable();
@@ -1071,31 +1293,38 @@
     }
   }
 
-  function renderSummaryCards() {
+  
+function renderSummaryCards() {
+    const totalVolume = state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Примерный объём работ']) || 0), 0);
     const cards = [
-            { title: 'Строк в наборе ОГХ', value: datasetMeta('ogh').rows.length, note: '' },
-      { title: 'Строк в наборе СОК', value: datasetMeta('sok').rows.length, note: '' },
-      { title: 'Строк в наборе МР', value: datasetMeta('mr').rows.length, note: '' },
-      { title: 'Строк в результате', value: state.scoredResults.length, note: 'Все строки и атрибуты из файла результата анализа' }
+      { title: 'Объекты в результате', value: state.scoredResults.length, note: 'Итоговый реестр после применения параметров результата' },
+      { title: 'Рекомендуемый объём', value: new Intl.NumberFormat('ru-RU').format(Math.round(totalVolume)), note: 'Суммарный объём по всем объектам' }
     ];
     $('resultSummaryCards').innerHTML = cards.map((card) => `
       <div class="summary-card">
         <div class="summary-card-title">${card.title}</div>
         <div class="summary-card-value">${card.value}</div>
-        <div class="summary-card-note">${card.note}</div>
+        <div class="summary-card-note">${card.note || ''}</div>
       </div>
     `).join('');
   }
 
-  function renderResultsTable() {
-    const columns = [...(APP.result.columns || []), ...EXTRA_RESULT_COLUMNS];
-    $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th class="${EXTRA_RESULT_COLUMNS.includes(col) ? 'numeric-cell' : ''}">${escapeHtml(col)}</th>`).join('')}</tr>`;
+  
+function renderResultsTable() {
+    const baseColumns = APP.result.columns || [];
+    const columns = ['Приоритетный вес', 'Причины приоритезации', 'Давность ремонта', 'Процент непокрытой площади', 'Примерный объём работ', 'Примерная стоимость', ...baseColumns];
+    $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th class="${['Приоритетный вес','Давность ремонта','Процент непокрытой площади','Примерный объём работ','Примерная стоимость'].includes(col) ? 'numeric-cell' : ''}">${escapeHtml(col)}</th>`).join('')}</tr>`;
     $('resultsBody').innerHTML = state.scoredResults.map((row, index) => `
       <tr data-result-index="${index}" class="${state.activeRowIndex === index ? 'is-active' : ''}">
         ${columns.map((col) => {
-          const value = row[col] ?? '';
+          let value = '';
+          if (col === 'Приоритетный вес') {
+            return `<td class="numeric-cell"><span class="priority-score-badge ${row.__priorityBand}">${escapeHtml(row.__score)}</span></td>`;
+          }
+          if (col === 'Причины приоритезации') value = row.__reasons || '';
+          else value = row[col] ?? '';
           const display = col === RESULT_GEOMETRY_KEY ? escapeHtml(String(value).slice(0, 120)) + '…' : formatResultCell(col, value);
-          const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', EXTRA_RESULT_COLUMNS.includes(col) ? 'numeric-cell' : ''].join(' ').trim();
+          const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', ['Давность ремонта','Процент непокрытой площади','Примерный объём работ','Примерная стоимость'].includes(col) ? 'numeric-cell' : ''].join(' ').trim();
           return `<td class="${cls}">${display}</td>`;
         }).join('')}
       </tr>
@@ -1116,17 +1345,8 @@
 
   function ensureMap() {
     if (state.map) return;
-    state.map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([55.75, 37.62], 11);
-    const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '',
-      maxZoom: 19,
-      crossOrigin: false
-    });
-    tiles.addTo(state.map);
-    state.map.whenReady(() => {
-      state.map.invalidateSize(true);
-      setTimeout(() => state.map.invalidateSize(true), 150);
-    });
+    state.map = L.map('map', { zoomControl: true }).setView([55.75, 37.62], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(state.map);
   }
 
   function renderMapLegend() {
@@ -1164,11 +1384,8 @@
     if (allLayers.length) {
       const group = L.featureGroup(allLayers);
       state.map.fitBounds(group.getBounds().pad(0.12));
-    } else {
-      state.map.setView([55.75, 37.62], 11);
     }
-    setTimeout(() => state.map.invalidateSize(true), 50);
-    setTimeout(() => state.map.invalidateSize(true), 250);
+    setTimeout(() => state.map.invalidateSize(), 50);
   }
 
   function focusResult(index) {
@@ -1220,7 +1437,8 @@
     renderDatasetPickers();
     renderFilterBlocks();
     renderBaseWeights();
-    renderPriorityPanel();
+    renderParametersPanel();
+    renderReviewPanel();
     if (state.mapLayers?.length) {
       state.mapLayers.forEach((layer) => layer.remove());
       state.mapLayers = [];
