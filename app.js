@@ -1259,6 +1259,8 @@ function renderPriorityRule(rule) {
     $('toolSection')?.classList.add('hidden');
     $('datasetsSection')?.classList.add('hidden');
     $('filtersSection')?.classList.add('hidden');
+    $('criteriaCard')?.classList.add('hidden');
+    $('parametersCard')?.classList.add('hidden');
     $('reviewCard')?.classList.add('hidden');
     $('resultsSection').classList.remove('hidden');
     state.currentStep = 5;
