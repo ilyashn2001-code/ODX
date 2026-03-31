@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/26389213/README.md)
+[README.md](https://github.com/user-attachments/files/26389299/README.md)
 [README.md](https://github.com/user-attachments/files/26304961/README.md)
 # Центр геоаналитических инструментов
 
@@ -33,7 +33,7 @@
 - базовая приоритизация возвращена в интерфейс как отдельный пользовательский блок
 
 
-Обновление v4:
-- исправлена структура секций шагов в index.html
-- после получения результата больше не отображается Шаг 4
-- в finalizeRun добавлено явное скрытие блоков criteriaCard и parametersCard
+Обновление v5:
+- удален лишний </section> после шага 3
+- parametersCard снова вложен в общий блок шагов
+- при завершении анализа шаг 4 и шаг 5 скрываются явно
