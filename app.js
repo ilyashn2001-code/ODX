@@ -3,21 +3,25 @@
   const APP = window.APP_DATA || {};
   const $ = (id) => document.getElementById(id);
 
-  const TOOL_OPTIONS = APP.toolOptions || [];
+  const TOOL_OPTIONS = [
+    { code: 'predictive', title: 'Сценарий формирования планов работ по благоустройству', description: 'Основной сценарий для отбора исходных данных, фильтрации и получения результата моделирования.' },
+    { code: 'coverage', title: 'Анализ территорий', description: 'Резервный сценарий для анализа территорий и сопоставления данных.' },
+    { code: 'compare', title: 'Спрогнозировать нагрузку на сети', description: 'Резервный сценарий для будущего моделирования нагрузки на инженерные сети.' }
+  ];
   const DATASETS = {
-    ogh: { code: 'ogh', title: APP.datasets?.ogh?.title || 'Набор ОГХ', short: 'ОГХ' },
-    sok: { code: 'sok', title: APP.datasets?.sok?.title || 'Набор благоустройства (СОК)', short: 'СОК' },
-    mr: { code: 'mr', title: APP.datasets?.mr?.title || 'Набор благоустройства (МР)', short: 'МР' }
+    ogh: { code: 'ogh', title: 'Объекты городского хозяйства', short: 'ОГХ' },
+    sok: { code: 'sok', title: 'Планы работ по благоустройству «СОК»', short: 'СОК' },
+    mr: { code: 'mr', title: 'Планы работ по благоустройству «Мой район»', short: 'МР' }
   };
   const DATASET_ORDER = ['ogh', 'sok', 'mr'];
-  const STEPS = ['Инструмент', 'Наборы', 'Критерии', 'Параметры', 'Проверка'];
+  const STEPS = ['Выбор сценария', 'Выбор исходных данных', 'Фильтрация данных', 'Критерии моделирования', 'Получение результата'];
   const RESULT_GEOMETRY_KEY = 'Геометрия неблагоустроенной территории';
   const EXTRA_RESULT_COLUMNS = ['Примерный объём работ', 'Примерная стоимость'];
   const BASE_WEIGHT_CHIPS = [
     { label: 'Давность ремонта', value: 'системно' },
-    { label: 'Процент непокрытой площади', value: 'системно' },
-    { label: 'Примерная стоимость', value: 'системно' },
-    { label: 'Примерный объём работ', value: 'системно' }
+    { label: 'Процент покрытия площади работ', value: 'системно' },
+    { label: 'Объём работ', value: 'системно' },
+    { label: 'Стоимость работ', value: 'системно' }
   ];
   const ASPHALT_WORK_TYPES = [
     'Замена покрытия асфальтобетонного проезда в рамках благоустройства территории',
@@ -247,14 +251,13 @@ function bindGlobalEvents() {
       updateToolHeader();
     });
     $('goToDatasetsBtn').addEventListener('click', () => {
-      
       $('datasetsSection').classList.remove('hidden');
       state.currentStep = 2;
       renderStepper();
       $('datasetsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('goToFiltersBtn').addEventListener('click', () => {
-      
+      $('datasetsSection').classList.remove('hidden');
       $('filtersSection').classList.remove('hidden');
       $('parametersCard').classList.add('hidden');
       $('reviewCard').classList.add('hidden');
@@ -264,8 +267,9 @@ function bindGlobalEvents() {
       $('filtersSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('goToParametersBtn').addEventListener('click', () => {
-      $('goToParametersBtn').closest('.toolbar-line')?.classList.add('hidden');
-      $('criteriaCard').classList.add('hidden');
+      $('datasetsSection').classList.remove('hidden');
+      $('filtersSection').classList.remove('hidden');
+      $('criteriaCard').classList.remove('hidden');
       $('parametersCard').classList.remove('hidden');
       $('reviewCard').classList.add('hidden');
       state.currentStep = 4;
@@ -274,8 +278,10 @@ function bindGlobalEvents() {
       $('parametersCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('goToReviewBtn').addEventListener('click', () => {
-      $('goToParametersBtn').closest('.toolbar-line')?.classList.add('hidden');
-      $('parametersCard').classList.add('hidden');
+      $('datasetsSection').classList.remove('hidden');
+      $('filtersSection').classList.remove('hidden');
+      $('criteriaCard').classList.remove('hidden');
+      $('parametersCard').classList.remove('hidden');
       $('reviewCard').classList.remove('hidden');
       state.currentStep = 5;
       renderStepper();
@@ -283,13 +289,14 @@ function bindGlobalEvents() {
       $('reviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('backToCriteriaBtn')?.addEventListener('click', () => {
-      $('goToParametersBtn').closest('.toolbar-line')?.classList.remove('hidden');
+      $('datasetsSection').classList.remove('hidden');
+      $('filtersSection').classList.remove('hidden');
       $('criteriaCard').classList.remove('hidden');
-      $('parametersCard').classList.add('hidden');
+      $('parametersCard').classList.remove('hidden');
       $('reviewCard').classList.add('hidden');
-      state.currentStep = 3;
+      state.currentStep = 4;
       renderStepper();
-      $('criteriaCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $('parametersCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('priorityEditToggle')?.addEventListener('change', (e) => {
       state.priorityEditable = e.target.checked;
@@ -319,7 +326,7 @@ function bindGlobalEvents() {
   function updateToolHeader() {
     const active = TOOL_OPTIONS.find((item) => item.code === state.tool);
     $('activeToolBadge').textContent = active?.title || 'Не выбран';
-if ($('toolDescription')) if ($('toolDescription')) if ($('toolDescription')) $('toolDescription').textContent = active?.description || '';
+if ($('toolDescription')) $('toolDescription').textContent = active?.description || '';
   }
 
   
@@ -342,7 +349,7 @@ function renderDatasetPickers() {
       </div>
     `;
 
-    const compareSelected = state.compareDatasets.length ? state.compareDatasets.map((c) => DATASETS[c].short).join(', ') : 'Выберите наборы';
+    const compareSelected = state.compareDatasets.length ? state.compareDatasets.map((c) => DATASETS[c].title).join(', ') : 'Выберите наборы';
     $('compareDatasetPicker').innerHTML = `
       <div class="dataset-dropdown">
         <details>
@@ -394,7 +401,7 @@ function renderDatasetPickers() {
   function renderFilterBlock(code) {
     const root = state.filters[code];
     const meta = DATASETS[code];
-    const role = code === state.mainDataset ? 'Анализируемые данные' : 'Данные для сопоставления';
+    const role = code === state.mainDataset ? 'Основной набор' : 'Набор сравнения';
     const selectedCount = collectSelectedNodes(root).length;
     return `
       <section class="filter-block" data-dataset-block="${code}">
@@ -1078,11 +1085,11 @@ function renderPriorityRule(rule) {
     if (!node) return;
     node.innerHTML = `
       <div class="parameter-box">
-        <h3>Нормативный срок службы</h3>
-        <label class="radio-line"><input type="radio" name="serviceLifeMode" value="normative" ${state.parameters.serviceLifeMode==='normative'?'checked':''}> По утверждённой нормативке</label>
-        <label class="radio-line"><input type="radio" name="serviceLifeMode" value="single" ${state.parameters.serviceLifeMode==='single'?'checked':''}> Один срок для всех работ</label>
-        <label class="radio-line"><input type="radio" name="serviceLifeMode" value="exceptions" ${state.parameters.serviceLifeMode==='exceptions'?'checked':''}> Исключения по отдельным видам работ</label>
-        ${state.parameters.serviceLifeMode==='single' ? `<label class="field top-space"><span class="field-label">Срок для всех работ</span><input type="number" id="serviceLifeSingle" min="1" step="1" value="${escapeAttr(state.parameters.serviceLifeSingle || '')}" placeholder="Например, 7"></label>` : ''}
+        <h3>Срок службы покрытий</h3>
+        <label class="radio-line"><input type="radio" name="serviceLifeMode" value="normative" ${state.parameters.serviceLifeMode==='normative'?'checked':''}> В соответствии с НПА</label>
+        <label class="radio-line"><input type="radio" name="serviceLifeMode" value="single" ${state.parameters.serviceLifeMode==='single'?'checked':''}> Указать другой срок для всех работ</label>
+        <label class="radio-line"><input type="radio" name="serviceLifeMode" value="exceptions" ${state.parameters.serviceLifeMode==='exceptions'?'checked':''}> Указать сроки для отдельных видов работ</label>
+        ${state.parameters.serviceLifeMode==='single' ? `<label class="field top-space"><span class="field-label">Указать срок для всех работ</span><input type="number" id="serviceLifeSingle" min="1" step="1" value="${escapeAttr(state.parameters.serviceLifeSingle || '')}" placeholder="Например, 7"></label>` : ''}
         ${state.parameters.serviceLifeMode==='exceptions' ? `
           <div class="stack top-space" id="serviceLifeExceptionsBox">
             ${(state.parameters.serviceLifeExceptions||[]).map((item, idx) => `
@@ -1095,9 +1102,9 @@ function renderPriorityRule(rule) {
           </div>` : ''}
       </div>
       <div class="parameter-box">
-        <h3>Процент непокрытой площади</h3>
+        <h3>Указать процент покрытия площади работ</h3>
         <label class="radio-line"><input type="radio" name="uncoveredMode" value="single" ${state.parameters.uncoveredMode==='single'?'checked':''}> Один фильтр для всех</label>
-        <label class="radio-line"><input type="radio" name="uncoveredMode" value="exceptions" ${state.parameters.uncoveredMode==='exceptions'?'checked':''}> Исключения по отдельным видам работ</label>
+        <label class="radio-line"><input type="radio" name="uncoveredMode" value="exceptions" ${state.parameters.uncoveredMode==='exceptions'?'checked':''}> Указать сроки для отдельных видов работ</label>
         ${renderRangeControl('uncoveredSingle', state.parameters.uncoveredSingle, 'Порог')}
         ${state.parameters.uncoveredMode==='exceptions' ? `
           <div class="stack top-space">
@@ -1111,11 +1118,11 @@ function renderPriorityRule(rule) {
           </div>` : ''}
       </div>
       <div class="parameter-box">
-        <h3>Примерный объём работ</h3>
+        <h3>Указать объем работ</h3>
         ${renderRangeControl('volume', state.parameters.volume, 'Диапазон')}
       </div>
       <div class="parameter-box">
-        <h3>Примерная стоимость</h3>
+        <h3>Указать стоимость работ</h3>
         ${renderRangeControl('cost', state.parameters.cost, 'Диапазон')}
       </div>
     `;
@@ -1199,10 +1206,10 @@ function renderPriorityRule(rule) {
         <div class="review-box">
           <h3>Шаг 4. Параметры</h3>
           <div class="review-list">
-            <div>Нормативный срок службы: ${escapeHtml(state.parameters.serviceLifeMode==='normative' ? 'по нормативке' : state.parameters.serviceLifeMode==='single' ? 'единый срок '+state.parameters.serviceLifeSingle+' лет' : 'исключения по видам работ')}</div>
+            <div>Срок службы: ${escapeHtml(state.parameters.serviceLifeMode==='normative' ? 'в соответствии с НПА' : state.parameters.serviceLifeMode==='single' ? 'единый срок '+state.parameters.serviceLifeSingle+' лет' : 'сроки по отдельным видам работ')}</div>
             <div>Процент непокрытой площади: ${escapeHtml(state.parameters.uncoveredMode==='single' ? describeRange(state.parameters.uncoveredSingle) : 'исключения по видам работ')}</div>
-            <div>Объём работ: ${escapeHtml(describeRange(state.parameters.volume))}</div>
-            <div>Стоимость: ${escapeHtml(describeRange(state.parameters.cost))}</div>
+            <div>Объем работ: ${escapeHtml(describeRange(state.parameters.volume))}</div>
+            <div>Стоимость работ: ${escapeHtml(describeRange(state.parameters.cost))}</div>
           </div>
         </div>
       </div>`;
@@ -1249,6 +1256,9 @@ function renderPriorityRule(rule) {
 
     $('loadingSection').classList.add('hidden');
 
+    $('toolSection')?.classList.add('hidden');
+    $('datasetsSection')?.classList.add('hidden');
+    $('filtersSection')?.classList.add('hidden');
     $('reviewCard')?.classList.add('hidden');
     $('resultsSection').classList.remove('hidden');
     state.currentStep = 5;
@@ -1298,8 +1308,14 @@ function recomputePriorities() {
           reasons.push(`Пользовательское правило: ${rule.field}`);
         }
       });
-      const band = score >= 80 ? 'high' : score >= 55 ? 'medium' : 'low';
-      return { ...row, 'Давность ремонта': repairAge, 'Процент непокрытой площади': Number(uncoveredPct.toFixed(2)), __score: Number(score.toFixed(2)), __priorityBand: band, __reasons: reasons.join(' · ') };
+      score = Math.max(0, Math.min(100, score));
+      const band = score >= 75 ? 'high' : score >= 20 ? 'medium' : 'low';
+      return { ...row, 'Давность ремонта': repairAge, 'Процент непокрытой площади': Number(uncoveredPct.toFixed(2)), __score: Number(score.toFixed(2)), __priorityBand: band, __criteriaWeights: [
+        { label: 'Давность ремонта', value: repairAge },
+        { label: 'Покрытие, %', value: Number(uncoveredPct.toFixed(2)) },
+        { label: 'Объем работ', value: Math.min(100, Math.round(volume / 1500)) },
+        { label: 'Стоимость работ', value: Math.min(100, Math.round(cost / 1000000 * 10)) }
+      ], __reasons: reasons.join(' · ') };
     }).sort((a,b)=>b.__score-a.__score);
     if (state.results.length) {
       renderSummaryCards();
@@ -1310,50 +1326,48 @@ function recomputePriorities() {
 
   
 function renderSummaryCards() {
-    const total = state.results.length;
-    const totalCost = state.results.reduce((sum, item) => sum + Number(item.estimatedCost || 0), 0);
-    const totalVolume = state.results.reduce((sum, item) => sum + Number(item.recommendedVolume || 0), 0);
-    const totalArea = state.results.reduce((sum, item) => sum + Number(item.totalArea || 0), 0);
+    const totalVolume = state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Примерный объём работ']) || 0), 0);
+    const totalCost = state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Примерная стоимость']) || 0), 0);
+    const avgUncovered = state.scoredResults.length
+      ? state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Процент непокрытой площади']) || 0), 0) / state.scoredResults.length
+      : 0;
+    const avgPriority = state.scoredResults.length
+      ? state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row.__score) || 0), 0) / state.scoredResults.length
+      : 0;
 
-    $('resultSummaryCards').innerHTML = `
+    const cards = [
+      { title: 'Объекты в результате', value: state.scoredResults.length, note: 'Итоговый реестр после применения параметров результата' },
+      { title: 'Рекомендуемый объём', value: new Intl.NumberFormat('ru-RU').format(Math.round(totalVolume)), note: 'Суммарный объём по всем объектам' },
+      { title: 'Примерная стоимость', value: new Intl.NumberFormat('ru-RU').format(Math.round(totalCost)), note: 'Суммарная оценка по всем объектам' },
+      { title: 'Площадь к благоустройству', value: new Intl.NumberFormat('ru-RU').format(Math.round(state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Площадь неблагоустроенной территории']) || 0), 0))), note: 'Суммарная предполагаемая площадь к благоустройству' }
+    ];
+    $('resultSummaryCards').innerHTML = cards.map((card) => `
       <div class="summary-card">
-        <div class="summary-card-title">Объекты в результате</div>
-        <span class="summary-card-value">${total}</span>
-        <div class="summary-card-sub">Итоговый реестр по анализируемому набору</div>
+        <div class="summary-card-title">${card.title}</div>
+        <div class="summary-card-value">${card.value}</div>
+        <div class="summary-card-note">${card.note || ''}</div>
       </div>
-      <div class="summary-card">
-        <div class="summary-card-title">Площадь объектов</div>
-        <span class="summary-card-value">${formatNumber(totalArea)}</span>
-        <div class="summary-card-sub">Суммарная площадь объектов результата</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-card-title">Рекомендуемый объём</div>
-        <span class="summary-card-value">${formatNumber(totalVolume)}</span>
-        <div class="summary-card-sub">Суммарный расчёт по выбранным объектам</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-card-title">Ориентировочная стоимость</div>
-        <span class="summary-card-value">${formatCurrency(totalCost)}</span>
-        <div class="summary-card-sub">Сводная оценка по итоговому реестру</div>
-      </div>
-    `;
+    `).join('');
   }
 
   
 function renderResultsTable() {
     const baseColumns = APP.result.columns || [];
     const tailColumns = ['Давность ремонта', 'Процент непокрытой площади', 'Примерный объём работ', 'Примерная стоимость'];
-    const columns = ['Приоритетный вес', ...baseColumns.filter((c) => !tailColumns.includes(c)), ...tailColumns];
-    $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th class="${['Приоритетный вес','Давность ремонта','Процент непокрытой площади','Примерный объём работ','Примерная стоимость'].includes(col) ? 'numeric-cell' : ''}">${escapeHtml(col)}</th>`).join('')}</tr>`;
+    const columns = ['Итоговый вес', 'Весовые критерии', ...baseColumns.filter((c) => !tailColumns.includes(c))];
+    $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th class="${['Итоговый вес'].includes(col) ? 'numeric-cell' : ''}">${escapeHtml(col)}</th>`).join('')}</tr>`;
     $('resultsBody').innerHTML = state.scoredResults.map((row, index) => `
       <tr data-result-index="${index}" class="${state.activeRowIndex === index ? 'is-active' : ''}">
         ${columns.map((col) => {
-          if (col === 'Приоритетный вес') {
-            return `<td class="numeric-cell"><span class="priority-score-badge ${row.__priorityBand}">${escapeHtml(row.__score)}</span></td>`;
+          if (col === 'Итоговый вес') {
+            return `<td class="numeric-cell"><div class="weight-summary"><span class="priority-score-badge ${row.__priorityBand}">${escapeHtml(row.__score)}</span></div></td>`;
+          }
+          if (col === 'Весовые критерии') {
+            return `<td><div class="criteria-badges">${(row.__criteriaWeights || []).map((item) => `<span class="criteria-badge ${bandClassByValue(item.value)}"><strong>${escapeHtml(item.label)}</strong><em>${escapeHtml(Number(item.value).toFixed(item.label === 'Покрытие, %' ? 2 : 0))}</em></span>`).join('')}</div></td>`;
           }
           const value = row[col] ?? '';
           const display = col === RESULT_GEOMETRY_KEY ? escapeHtml(String(value).slice(0, 120)) + '…' : formatResultCell(col, value);
-          const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', ['Давность ремонта','Процент непокрытой площади','Примерный объём работ','Примерная стоимость'].includes(col) ? 'numeric-cell' : ''].join(' ').trim();
+          const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', ['Итоговый вес'].includes(col) ? 'numeric-cell' : ''].join(' ').trim();
           return `<td class="${cls}">${display}</td>`;
         }).join('')}
       </tr>
@@ -1361,6 +1375,14 @@ function renderResultsTable() {
     document.querySelectorAll('[data-result-index]').forEach((tr) => {
       tr.addEventListener('click', () => focusResult(Number(tr.getAttribute('data-result-index'))));
     });
+  }
+
+
+  function bandClassByValue(value) {
+    const num = Number(value) || 0;
+    if (num >= 75) return 'high';
+    if (num >= 20) return 'medium';
+    return 'low';
   }
 
 
@@ -1380,12 +1402,12 @@ function renderResultsTable() {
 
   function renderMapLegend() {
     $('mapLegend').innerHTML = `
-      <div class="legend-item"><span class="legend-swatch" style="background:#2563eb"></span> Объекты результата анализа</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:#2563eb"></span> Предполагаемая территория к благоустройству</div>
     `;
   }
 
   function colorForBand(band) {
-    return band === 'high' ? '#dc2626' : band === 'medium' ? '#d97706' : band === 'low' ? '#16a34a' : '#2563eb';
+    return band === 'high' ? '#16a34a' : band === 'medium' ? '#d97706' : band === 'low' ? '#dc2626' : '#2563eb';
   }
 
   function renderMap() {
@@ -1452,13 +1474,13 @@ function renderResultsTable() {
   }
 
   function resetAll() {
-    $('toolSection').classList.remove('is-collapsed');
+    $('toolSection').classList.remove('hidden');
     $('datasetsSection').classList.add('hidden');
-    $('datasetsSection').classList.remove('is-collapsed');
     $('filtersSection').classList.add('hidden');
     $('resultsSection').classList.add('hidden');
     $('criteriaCard').classList.remove('hidden');
-    $('launchCard').classList.remove('hidden');
+    $('parametersCard').classList.add('hidden');
+    $('reviewCard').classList.add('hidden');
     $('loadingSection').classList.add('hidden');
     resetState();
     renderStepper();
