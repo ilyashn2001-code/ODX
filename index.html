@@ -34,12 +34,12 @@
       <div class="card-head">
         <div>
           <h2>Шаг 1. Выбор сценария</h2>
-          
+          <p>Сначала выберите сценарий работы с системой.</p>
         </div>
       </div>
       <div class="tool-picker compact-one">
         <label class="field">
-          <span class="field-label">Что вы хотите сделать</span>
+          <span class="field-label">Выберите сценарий</span>
           <select id="toolSelect"></select>
         </label>
         
@@ -53,15 +53,15 @@
       <div class="card-head">
         <div>
           <h2>Шаг 2. Выбор исходных данных</h2>
-          <p>Выберите основной анализируемый набор и один или несколько наборов для сравнения.</p>
+          <p>Выберите основной исходный набор и дополнительные наборы для сопоставления.</p>
         </div>
       </div>
       <div class="dataset-grid">
         <article class="dataset-card accent-main">
           <div class="dataset-card-head">
             <div>
-              <div class="dataset-badge">Анализ</div>
-              <h3>Анализируемые данные</h3>
+              <div class="dataset-badge">Исходные данные</div>
+              <h3>Основной набор данных</h3>
               <p></p>
             </div>
           </div>
@@ -71,8 +71,8 @@
         <article class="dataset-card accent-compare">
           <div class="dataset-card-head">
             <div>
-              <div class="dataset-badge compare">Сопоставление</div>
-              <h3>Данные для сопоставления</h3>
+              <div class="dataset-badge compare">Дополнительные данные</div>
+              <h3>Дополнительные наборы данных</h3>
               <p></p>
             </div>
           </div>
@@ -105,26 +105,26 @@
       <section id="parametersCard" class="card hidden">
         <div class="card-head">
           <div>
-            <h2>Шаг 4. Параметры результата</h2>
-            <p>Точно настройте, какие объекты должны попасть в итоговый анализ: срок службы, процент непокрытой площади, объём работ и стоимость.</p>
+            <h2>Шаг 4. Критерии моделирования</h2>
+            <p>Настройте параметры моделирования: срок службы, процент покрытия площади работ, объём работ и стоимость.</p>
           </div>
         </div>
         <div id="parametersPanel" class="parameter-grid"></div>
         <div class="toolbar-line top-space">
-          <button id="goToReviewBtn" class="btn btn-primary">Проверить конфигурацию</button>
+          <button id="goToReviewBtn" class="btn btn-primary">Перейти к результату</button>
         </div>
       </section>
 
       <section id="reviewCard" class="card hidden">
         <div class="card-head">
           <div>
-            <h2>Шаг 5. Проверка сценария</h2>
-            <p>Проверьте выбранные шаги перед запуском. Можно вернуться к любому этапу — заполнение сохранится.</p>
+            <h2>Шаг 5. Получение результата</h2>
+            <p>Проверьте выбранные параметры перед запуском расчёта. При необходимости можно вернуться к предыдущим шагам.</p>
           </div>
         </div>
         <div id="reviewPanel" class="summary-setup-card"></div>
         <div class="toolbar-line top-space">
-          <button id="backToCriteriaBtn" class="btn btn-secondary">Назад к критериям</button>
+          <button id="backToCriteriaBtn" class="btn btn-secondary">Вернуться к шагам</button>
           <button id="runAnalysisBtn" class="btn btn-primary">Получить анализ</button>
           <button id="resetBtn" class="btn btn-secondary">Сбросить всё</button>
         </div>
@@ -160,8 +160,8 @@
       <section class="card full-map-card">
         <div class="card-head">
           <div>
-            <h2>Карта</h2>
-            <p>На карте отображается WKT-геометрия из файла результата анализа. Нажмите на строку таблицы, чтобы отцентрироваться по объекту.</p>
+            <h2>Карта результата</h2>
+            <p>На карте отображается предполагаемая территория к благоустройству. Нажмите на строку таблицы, чтобы отцентрироваться по объекту.</p>
           </div>
           <button id="newAnalysisBtn" class="btn btn-secondary">Новый анализ</button>
         </div>
@@ -174,7 +174,7 @@
       <section class="card">
         <div class="card-head">
           <div>
-            <h2>Итоговый результат анализа</h2>
+            <h2>Итоговый результат моделирования</h2>
             <p>Таблица фиксирована по ширине контейнера, а лишние колонки просматриваются через горизонтальный скролл.</p>
           </div>
           <button id="exportBtn" class="btn btn-secondary">Выгрузить в Excel</button>
