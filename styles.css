@@ -838,12 +838,12 @@ input:focus {
 .review-box h3{font-size:15px; margin-bottom:8px}
 .review-list{display:grid; gap:6px; color:var(--muted); font-size:14px}
 .priority-score-badge{display:inline-flex; min-width:72px; justify-content:center; padding:6px 10px; border-radius:999px; font-weight:800}
-.priority-score-badge.high{background:#eaf7ee; color:#1d7a37}
+.priority-score-badge.high{background:#fdeaea; color:#b42318}
 .priority-score-badge.medium{background:#fff4e5; color:#b26a00}
-.priority-score-badge.low{background:#fdeaea; color:#b42318}
+.priority-score-badge.low{background:#eaf7ee; color:#1d7a37}
 #resultsSection{min-width:0; overflow:hidden}
 .table-wrap{max-width:100%; overflow:auto}
-.results-table{width:max-content; min-width:1180px}
+.results-table{width:max-content; min-width:1400px}
 .results-table th,.results-table td{white-space:normal}
 @media (max-width: 900px){
   .parameter-grid,.review-grid{grid-template-columns:1fr}
@@ -851,12 +851,3 @@ input:focus {
 
 .single-range{grid-template-columns:160px 1fr 0.2fr}
 .range-spacer{min-width:0}
-
-.weight-summary{display:flex; align-items:center; justify-content:center}
-.criteria-badges{display:flex; flex-wrap:wrap; gap:6px; min-width:260px; max-width:320px}
-.criteria-badge{display:inline-flex; align-items:center; gap:8px; padding:6px 8px; border-radius:12px; font-size:12px; line-height:1.2; border:1px solid var(--border); background:#f8fbff}
-.criteria-badge strong{font-weight:700}
-.criteria-badge em{font-style:normal; font-weight:800}
-.criteria-badge.high{background:#eaf7ee; color:#1d7a37; border-color:#b8e0c3}
-.criteria-badge.medium{background:#fff4e5; color:#b26a00; border-color:#f0d19a}
-.criteria-badge.low{background:#fdeaea; color:#b42318; border-color:#efc1be}
