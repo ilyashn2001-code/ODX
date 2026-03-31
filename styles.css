@@ -851,3 +851,18 @@ input:focus {
 
 .single-range{grid-template-columns:160px 1fr 0.2fr}
 .range-spacer{min-width:0}
+
+
+.tool-picker.compact-one{display:block;max-width:620px}
+.priority-pill{
+  display:inline-flex;align-items:center;justify-content:center;min-width:56px;
+  padding:6px 10px;border-radius:999px;font-weight:800
+}
+.priority-pill.high{background:#eaf7ee;color:#15803d}
+.priority-pill.medium{background:#fff4e5;color:#c97711}
+.priority-pill.low{background:#fdeaea;color:#d23b3b}
+.weights-cell{min-width:180px;font-size:12px;line-height:1.35;color:var(--muted)}
+.weight-mini{white-space:nowrap}
+.results-table{font-size:13px}
+.results-table td,.results-table th{padding:10px 12px;vertical-align:top}
+.summary-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
