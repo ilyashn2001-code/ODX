@@ -247,14 +247,14 @@ function bindGlobalEvents() {
       updateToolHeader();
     });
     $('goToDatasetsBtn').addEventListener('click', () => {
-      $('toolSection').classList.add('is-collapsed');
+      
       $('datasetsSection').classList.remove('hidden');
       state.currentStep = 2;
       renderStepper();
       $('datasetsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     $('goToFiltersBtn').addEventListener('click', () => {
-      $('datasetsSection').classList.add('is-collapsed');
+      
       $('filtersSection').classList.remove('hidden');
       $('parametersCard').classList.add('hidden');
       $('reviewCard').classList.add('hidden');
@@ -319,7 +319,7 @@ function bindGlobalEvents() {
   function updateToolHeader() {
     const active = TOOL_OPTIONS.find((item) => item.code === state.tool);
     $('activeToolBadge').textContent = active?.title || 'Не выбран';
-if ($('toolDescription')) $('toolDescription').textContent = active?.description || '';
+if ($('toolDescription')) if ($('toolDescription')) if ($('toolDescription')) $('toolDescription').textContent = active?.description || '';
   }
 
   
@@ -394,7 +394,7 @@ function renderDatasetPickers() {
   function renderFilterBlock(code) {
     const root = state.filters[code];
     const meta = DATASETS[code];
-    const role = code === state.mainDataset ? 'Основной набор' : 'Набор сравнения';
+    const role = code === state.mainDataset ? 'Анализируемые данные' : 'Данные для сопоставления';
     const selectedCount = collectSelectedNodes(root).length;
     return `
       <section class="filter-block" data-dataset-block="${code}">
@@ -1310,28 +1310,33 @@ function recomputePriorities() {
 
   
 function renderSummaryCards() {
-    const totalVolume = state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Примерный объём работ']) || 0), 0);
-    const totalCost = state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Примерная стоимость']) || 0), 0);
-    const avgUncovered = state.scoredResults.length
-      ? state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Процент непокрытой площади']) || 0), 0) / state.scoredResults.length
-      : 0;
-    const avgPriority = state.scoredResults.length
-      ? state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row.__score) || 0), 0) / state.scoredResults.length
-      : 0;
+    const total = state.results.length;
+    const totalCost = state.results.reduce((sum, item) => sum + Number(item.estimatedCost || 0), 0);
+    const totalVolume = state.results.reduce((sum, item) => sum + Number(item.recommendedVolume || 0), 0);
+    const totalArea = state.results.reduce((sum, item) => sum + Number(item.totalArea || 0), 0);
 
-    const cards = [
-      { title: 'Объекты в результате', value: state.scoredResults.length, note: 'Итоговый реестр после применения параметров результата' },
-      { title: 'Рекомендуемый объём', value: new Intl.NumberFormat('ru-RU').format(Math.round(totalVolume)), note: 'Суммарный объём по всем объектам' },
-      { title: 'Примерная стоимость', value: new Intl.NumberFormat('ru-RU').format(Math.round(totalCost)), note: 'Суммарная оценка по всем объектам' },
-      { title: 'Средний приоритет', value: avgPriority.toFixed(2), note: 'Средний приоритетный вес по результату' }
-    ];
-    $('resultSummaryCards').innerHTML = cards.map((card) => `
+    $('resultSummaryCards').innerHTML = `
       <div class="summary-card">
-        <div class="summary-card-title">${card.title}</div>
-        <div class="summary-card-value">${card.value}</div>
-        <div class="summary-card-note">${card.note || ''}</div>
+        <div class="summary-card-title">Объекты в результате</div>
+        <span class="summary-card-value">${total}</span>
+        <div class="summary-card-sub">Итоговый реестр по анализируемому набору</div>
       </div>
-    `).join('');
+      <div class="summary-card">
+        <div class="summary-card-title">Площадь объектов</div>
+        <span class="summary-card-value">${formatNumber(totalArea)}</span>
+        <div class="summary-card-sub">Суммарная площадь объектов результата</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-title">Рекомендуемый объём</div>
+        <span class="summary-card-value">${formatNumber(totalVolume)}</span>
+        <div class="summary-card-sub">Суммарный расчёт по выбранным объектам</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-title">Ориентировочная стоимость</div>
+        <span class="summary-card-value">${formatCurrency(totalCost)}</span>
+        <div class="summary-card-sub">Сводная оценка по итоговому реестру</div>
+      </div>
+    `;
   }
 
   
