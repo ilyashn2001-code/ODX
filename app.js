@@ -18,10 +18,10 @@
   const RESULT_GEOMETRY_KEY = 'Геометрия неблагоустроенной территории';
   const EXTRA_RESULT_COLUMNS = ['Примерный объём работ', 'Примерная стоимость'];
   const SYSTEM_PRIORITY_WEIGHTS = [
-    { key: 'age', label: 'Давность ремонта', weight: 35, note: '35%' },
-    { key: 'coverage', label: 'Покрытие к выполнению', weight: 30, note: '30%' },
-    { key: 'volume', label: 'Примерный объём работ', weight: 20, note: '20%' },
-    { key: 'cost', label: 'Примерная стоимость', weight: 15, note: '15%' }
+    { key: 'age', label: 'Давность ремонта', weight: 35 },
+    { key: 'coverage', label: 'Покрытие к выполнению', weight: 30 },
+    { key: 'volume', label: 'Примерный объём работ', weight: 20 },
+    { key: 'cost', label: 'Примерная стоимость', weight: 15 }
   ];
   const ASPHALT_WORK_TYPES = [
     'Замена покрытия асфальтобетонного проезда в рамках благоустройства территории',
@@ -859,15 +859,14 @@ function renderDatasetPickers() {
   }
 
   function renderBaseWeights() {
-    $('baseWeightsChips').innerHTML = `
-      <div class="system-weights-wrap">
-        ${SYSTEM_PRIORITY_WEIGHTS.map((item) => `
-          <div class="system-weight-chip">
-            <div class="system-weight-title">${item.label}</div>
-            <div class="system-weight-value">${item.weight}%</div>
-          </div>
-        `).join('')}
+    const html = SYSTEM_PRIORITY_WEIGHTS.map((item) => `
+      <div class="system-weight-chip">
+        <div class="system-weight-title">${item.label}</div>
+        <div class="system-weight-value">${item.weight}%</div>
       </div>
+    `).join('');
+    $('baseWeightsChips').innerHTML = `
+      <div class="system-weights-wrap">${html}</div>
       <div class="system-weight-formula">
         Итоговый вес = вес по давности ремонта + вес по покрытию + вес по объёму + вес по стоимости.
       </div>
@@ -1295,102 +1294,38 @@ function renderPriorityRule(rule) {
 
   
 function recomputePriorities() {
-    const rows = state.results.length
-      ? state.results
-      : ((APP.result?.rows || []).map((row, index) => ({ ...row, ...deriveEstimateFields(row), __index: index })));
-
-    function normalizeSeries(values) {
-      const clean = values.map((value) => Number(value) || 0);
-      const min = Math.min(...clean);
-      const max = Math.max(...clean);
-      if (max === min) return clean.map(() => clean[0] > 0 ? 100 : 0);
-      return clean.map((value) => ((value - min) / (max - min)) * 100);
-    }
-
-    const prepared = rows.map((row) => {
-      const totalArea = normalizeNumber(row['Площадь']) || 0;
-      const uncoveredArea = normalizeNumber(row['Площадь неблагоустроенной территории']) || 0;
-      const coverageToDo = totalArea > 0 ? (uncoveredArea / totalArea) * 100 : 0;
-
-      const serviceLife = normalizeNumber(row['межремонтный срок']) || 0;
-      const violated = String(row['Нарушение межремонтного срока (дороги) (сравнение с планами 26 года)']).toLowerCase() === 'true';
-      const hasPlan2026 = String(row['Наличие плана на 2026 (дороги)']).toLowerCase() === 'true';
-      const hasPlan2027 = String(row['Наличие плана на 2027 (дороги)']).toLowerCase() === 'true';
-
-      let ageMetric = serviceLife;
-      if (violated) ageMetric += 2;
-      if (!hasPlan2026) ageMetric += 1;
-      if (!hasPlan2027) ageMetric += 0.5;
-
-      const volume = normalizeNumber(row['Примерный объём работ']) || 0;
+    const rows = state.results.length ? state.results : ((APP.result?.rows || []).map((row, index) => ({ ...row, ...deriveEstimateFields(row), __index: index })));
+    state.scoredResults = rows.map((row) => {
+      const uncoveredPct = (() => {
+        const area = normalizeNumber(row['Площадь']) || 0;
+        const unc = normalizeNumber(row['Площадь неблагоустроенной территории']) || 0;
+        return area ? (unc / area) * 100 : 0;
+      })();
+      const repairAge = Math.max(1, 10 - (normalizeNumber(row['межремонтный срок']) || 0));
       const cost = normalizeNumber(row['Примерная стоимость']) || 0;
-
-      return {
-        ...row,
-        'Давность ремонта': Number(ageMetric.toFixed(2)),
-        'Покрытие к выполнению, %': Number(coverageToDo.toFixed(2)),
-        'Примерный объём работ': volume,
-        'Примерная стоимость': cost,
-        __metricAge: ageMetric,
-        __metricCoverage: coverageToDo,
-        __metricVolume: volume,
-        __metricCost: cost
-      };
-    });
-
-    const ageNorm = normalizeSeries(prepared.map((row) => row.__metricAge));
-    const coverageNorm = normalizeSeries(prepared.map((row) => row.__metricCoverage));
-    const volumeNorm = normalizeSeries(prepared.map((row) => row.__metricVolume));
-    const costNorm = normalizeSeries(prepared.map((row) => row.__metricCost));
-
-    state.scoredResults = prepared.map((row, index) => {
-      let ageWeight = ageNorm[index] * 0.35;
-      let coverageWeight = coverageNorm[index] * 0.30;
-      let volumeWeight = volumeNorm[index] * 0.20;
-      let costWeight = costNorm[index] * 0.15;
-
-      let score = ageWeight + coverageWeight + volumeWeight + costWeight;
+      const volume = normalizeNumber(row['Примерный объём работ']) || 0;
+      let score = repairAge * 2.5 + uncoveredPct * 0.35 + volume / 1500 + cost / 1000000;
       const reasons = [
-        `Давность ремонта: ${row['Давность ремонта']} → ${ageWeight.toFixed(2)}`,
-        `Покрытие к выполнению: ${row['Покрытие к выполнению, %'].toFixed(2)}% → ${coverageWeight.toFixed(2)}`,
-        `Примерный объём работ: ${row['Примерный объём работ'].toFixed(0)} → ${volumeWeight.toFixed(2)}`,
-        `Примерная стоимость: ${row['Примерная стоимость'].toFixed(0)} → ${costWeight.toFixed(2)}`
+        `Давность ремонта: ${repairAge}`,
+        `Процент непокрытой площади: ${uncoveredPct.toFixed(2)}`,
+        `Примерная стоимость: ${cost.toFixed(2)}`,
+        `Примерный объём работ: ${volume.toFixed(2)}`
       ];
-
       (state.priorityRules || []).forEach((rule) => {
         if (evaluateCondition(row, rule.field, rule.operator, rule.value1, rule.value2, inferResultColumnType(rule.field))) {
-          const bonus = Number(rule.coefficient) || 0;
-          score += bonus;
-          reasons.push(`Пользовательское правило: ${rule.field} (+${bonus})`);
+          score += Number(rule.coefficient) || 0;
+          reasons.push(`Пользовательское правило: ${rule.field}`);
         }
       });
-
       score = Math.max(0, Math.min(100, score));
-      ageWeight = Number(ageWeight.toFixed(2));
-      coverageWeight = Number(coverageWeight.toFixed(2));
-      volumeWeight = Number(volumeWeight.toFixed(2));
-      costWeight = Number(costWeight.toFixed(2));
-
-      const band = score >= 75 ? 'high' : score >= 40 ? 'medium' : 'low';
-
-      return {
-        ...row,
-        'Вес по давности ремонта': ageWeight,
-        'Вес по покрытию': coverageWeight,
-        'Вес по объёму': volumeWeight,
-        'Вес по стоимости': costWeight,
-        __score: Number(score.toFixed(2)),
-        __priorityBand: band,
-        __criteriaWeights: [
-          { label: 'Давность ремонта', value: ageWeight },
-          { label: 'Покрытие к выполнению', value: coverageWeight },
-          { label: 'Примерный объём работ', value: volumeWeight },
-          { label: 'Примерная стоимость', value: costWeight }
-        ],
-        __reasons: reasons.join(' · ')
-      };
-    }).sort((a, b) => b.__score - a.__score);
-
+      const band = score >= 75 ? 'high' : score >= 20 ? 'medium' : 'low';
+      return { ...row, 'Давность ремонта': repairAge, 'Процент непокрытой площади': Number(uncoveredPct.toFixed(2)), __score: Number(score.toFixed(2)), __priorityBand: band, __criteriaWeights: [
+        { label: 'Давность ремонта', value: repairAge },
+        { label: 'Покрытие, %', value: Number(uncoveredPct.toFixed(2)) },
+        { label: 'Объем работ', value: Math.min(100, Math.round(volume / 1500)) },
+        { label: 'Стоимость работ', value: Math.min(100, Math.round(cost / 1000000 * 10)) }
+      ], __reasons: reasons.join(' · ') };
+    }).sort((a,b)=>b.__score-a.__score);
     if (state.results.length) {
       renderSummaryCards();
       renderResultsTable();
@@ -1398,7 +1333,8 @@ function recomputePriorities() {
     }
   }
 
-  function renderSummaryCards() {) {
+  
+function renderSummaryCards() {
     const totalVolume = state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Примерный объём работ']) || 0), 0);
     const totalCost = state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Примерная стоимость']) || 0), 0);
     const avgUncovered = state.scoredResults.length
@@ -1458,7 +1394,7 @@ function renderResultsTable() {
             return `<td class="numeric-cell"><span class="weight-cell ${bandClassByValue(value)}">${escapeHtml(value.toFixed(2))}</span></td>`;
           }
           const value = row[col] ?? '';
-          const display = col === RESULT_GEOMETRY_KEY ? escapeHtml(String(value).slice(0, 120)) + '…' : formatResultCell(col, value);
+          const display = col === RESULT_GEOMETRY_KEY ? `${escapeHtml(String(value).slice(0, 120))}…` : formatResultCell(col, value);
           const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', ['Давность ремонта','Покрытие к выполнению, %','Примерный объём работ','Примерная стоимость'].includes(col) ? 'numeric-cell' : ''].join(' ').trim();
           return `<td class="${cls}">${display}</td>`;
         }).join('')}
@@ -1485,7 +1421,7 @@ function renderResultsTable() {
       return escapeHtml(new Intl.NumberFormat('ru-RU').format(Number(value || 0)));
     }
     if (['Итоговый вес', 'Вес по давности ремонта', 'Вес по покрытию', 'Вес по объёму', 'Вес по стоимости', 'Давность ремонта', 'Покрытие к выполнению, %'].includes(column)) {
-      return escapeHtml(new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(value || 0)));
+      return escapeHtml(new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(Number(value || 0)));
     }
     return escapeHtml(sanitizeText(value));
   }
