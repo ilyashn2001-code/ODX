@@ -1431,7 +1431,8 @@ function recomputePriorities() {
     const prepared = rows.map((row) => {
       const totalArea = normalizeNumber(row['Площадь']) || 0;
       const uncoveredArea = normalizeNumber(row['Площадь неблагоустроенной территории']) || 0;
-      const coverage = totalArea ? (uncoveredArea / totalArea) * 100 : 0;
+      let coverage = totalArea ? (uncoveredArea / totalArea) * 100 : 0;
+coverage = Math.max(0, Math.min(coverage, 100));
 
       const serviceLife = Math.round(normalizeNumber(row['межремонтный срок']) || 0);
       const violated = String(row['Нарушение межремонтного срока (дороги) (сравнение с планами 26 года)']).toLowerCase() === 'true';
