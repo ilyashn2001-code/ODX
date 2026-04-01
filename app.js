@@ -17,11 +17,11 @@
   const STEPS = ['Выбор сценария', 'Выбор исходных данных', 'Фильтрация данных', 'Критерии моделирования', 'Получение результата'];
   const RESULT_GEOMETRY_KEY = 'Геометрия неблагоустроенной территории';
   const EXTRA_RESULT_COLUMNS = ['Примерный объём работ', 'Примерная стоимость'];
-  const BASE_WEIGHT_CHIPS = [
-    { label: 'Давность ремонта', value: 'системно' },
-    { label: 'Процент покрытия площади работ', value: 'системно' },
-    { label: 'Объём работ', value: 'системно' },
-    { label: 'Стоимость работ', value: 'системно' }
+  const SYSTEM_PRIORITY_WEIGHTS = [
+    { key: 'age', label: 'Давность ремонта', weight: 35, note: 'межремонтный срок + признак нарушения + отсутствие ближайших планов' },
+    { key: 'coverage', label: 'Покрытие к выполнению', weight: 30, note: 'доля неблагоустроенной площади от общей площади объекта' },
+    { key: 'volume', label: 'Примерный объём работ', weight: 20, note: 'чем больше предполагаемый объём, тем выше вклад' },
+    { key: 'cost', label: 'Примерная стоимость', weight: 15, note: 'чем выше стоимость, тем выше вклад' }
   ];
   const ASPHALT_WORK_TYPES = [
     'Замена покрытия асфальтобетонного проезда в рамках благоустройства территории',
@@ -859,9 +859,20 @@ function renderDatasetPickers() {
   }
 
   function renderBaseWeights() {
-    $('baseWeightsChips').innerHTML = BASE_WEIGHT_CHIPS
-      .map((item) => `<span class="chip">${item.label} — ${item.value}</span>`)
-      .join('');
+    $('baseWeightsChips').innerHTML = `
+      <div class="system-weights-wrap">
+        ${SYSTEM_PRIORITY_WEIGHTS.map((item) => `
+          <div class="system-weight-chip">
+            <div class="system-weight-title">${item.label}</div>
+            <div class="system-weight-value">${item.weight}%</div>
+            <div class="system-weight-note">${item.note}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="system-weight-formula">
+        Итоговый вес = Σ (нормированный показатель × системный вес). Результат приводится к шкале 0–100.
+      </div>
+    `;
   }
 
   function renderPriorityPanel() {
@@ -1355,25 +1366,46 @@ function renderSummaryCards() {
   
 function renderResultsTable() {
     const baseColumns = APP.result.columns || [];
-    const tailColumns = ['Давность ремонта', 'Процент непокрытой площади', 'Примерный объём работ', 'Примерная стоимость'];
-    const columns = ['Итоговый вес', 'Весовые критерии', ...baseColumns.filter((c) => !tailColumns.includes(c))];
-    $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th class="${['Итоговый вес'].includes(col) ? 'numeric-cell' : ''}">${escapeHtml(col)}</th>`).join('')}</tr>`;
+    const hiddenColumns = [
+      'Давность ремонта',
+      'Процент непокрытой площади',
+      'Покрытие к выполнению, %',
+      'Примерный объём работ',
+      'Примерная стоимость'
+    ];
+    const columns = [
+      'Итоговый вес',
+      'Вес по давности ремонта',
+      'Вес по покрытию',
+      'Вес по объёму',
+      'Вес по стоимости',
+      ...baseColumns.filter((c) => !hiddenColumns.includes(c)),
+      'Давность ремонта',
+      'Покрытие к выполнению, %',
+      'Примерный объём работ',
+      'Примерная стоимость'
+    ];
+
+    $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th class="${['Итоговый вес','Вес по давности ремонта','Вес по покрытию','Вес по объёму','Вес по стоимости','Давность ремонта','Покрытие к выполнению, %','Примерный объём работ','Примерная стоимость'].includes(col) ? 'numeric-cell' : ''}">${escapeHtml(col)}</th>`).join('')}</tr>`;
+
     $('resultsBody').innerHTML = state.scoredResults.map((row, index) => `
       <tr data-result-index="${index}" class="${state.activeRowIndex === index ? 'is-active' : ''}">
         ${columns.map((col) => {
           if (col === 'Итоговый вес') {
             return `<td class="numeric-cell"><div class="weight-summary"><span class="priority-score-badge ${row.__priorityBand}">${escapeHtml(row.__score)}</span></div></td>`;
           }
-          if (col === 'Весовые критерии') {
-            return `<td><div class="criteria-badges">${(row.__criteriaWeights || []).map((item) => `<span class="criteria-badge ${bandClassByValue(item.value)}"><strong>${escapeHtml(item.label)}</strong><em>${escapeHtml(Number(item.value).toFixed(item.label === 'Покрытие, %' ? 2 : 0))}</em></span>`).join('')}</div></td>`;
+          if (['Вес по давности ремонта','Вес по покрытию','Вес по объёму','Вес по стоимости'].includes(col)) {
+            const value = Number(row[col] || 0);
+            return `<td class="numeric-cell"><span class="weight-cell ${bandClassByValue(value)}">${escapeHtml(value.toFixed(2))}</span></td>`;
           }
           const value = row[col] ?? '';
           const display = col === RESULT_GEOMETRY_KEY ? escapeHtml(String(value).slice(0, 120)) + '…' : formatResultCell(col, value);
-          const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', ['Итоговый вес'].includes(col) ? 'numeric-cell' : ''].join(' ').trim();
+          const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', ['Давность ремонта','Покрытие к выполнению, %','Примерный объём работ','Примерная стоимость'].includes(col) ? 'numeric-cell' : ''].join(' ').trim();
           return `<td class="${cls}">${display}</td>`;
         }).join('')}
       </tr>
     `).join('');
+
     document.querySelectorAll('[data-result-index]').forEach((tr) => {
       tr.addEventListener('click', () => focusResult(Number(tr.getAttribute('data-result-index'))));
     });
@@ -1390,8 +1422,11 @@ function renderResultsTable() {
 
   function formatResultCell(column, value) {
     if (value === null || value === undefined || value === '') return '';
-    if (EXTRA_RESULT_COLUMNS.includes(column)) {
+    if (EXTRA_RESULT_COLUMNS.includes(column) || ['Примерная стоимость', 'Примерный объём работ'].includes(column)) {
       return escapeHtml(new Intl.NumberFormat('ru-RU').format(Number(value || 0)));
+    }
+    if (['Итоговый вес', 'Вес по давности ремонта', 'Вес по покрытию', 'Вес по объёму', 'Вес по стоимости', 'Давность ремонта', 'Покрытие к выполнению, %'].includes(column)) {
+      return escapeHtml(new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(Number(value || 0)));
     }
     return escapeHtml(sanitizeText(value));
   }
