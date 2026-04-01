@@ -18,10 +18,10 @@
   const RESULT_GEOMETRY_KEY = 'Геометрия неблагоустроенной территории';
   const EXTRA_RESULT_COLUMNS = ['Примерный объём работ', 'Примерная стоимость'];
   const SYSTEM_PRIORITY_WEIGHTS = [
-    { key: 'age', label: 'Давность ремонта', weight: 35 },
-    { key: 'coverage', label: 'Покрытие к выполнению', weight: 30 },
-    { key: 'volume', label: 'Примерный объём работ', weight: 20 },
-    { key: 'cost', label: 'Примерная стоимость', weight: 15 }
+    { key: 'age', label: 'Давность ремонта', weight: 35, note: 'межремонтный срок + признак нарушения + отсутствие ближайших планов' },
+    { key: 'coverage', label: 'Покрытие к выполнению', weight: 30, note: 'доля неблагоустроенной площади от общей площади объекта' },
+    { key: 'volume', label: 'Примерный объём работ', weight: 20, note: 'чем больше предполагаемый объём, тем выше вклад' },
+    { key: 'cost', label: 'Примерная стоимость', weight: 15, note: 'чем выше стоимость, тем выше вклад' }
   ];
   const ASPHALT_WORK_TYPES = [
     'Замена покрытия асфальтобетонного проезда в рамках благоустройства территории',
@@ -859,16 +859,18 @@ function renderDatasetPickers() {
   }
 
   function renderBaseWeights() {
-    const html = SYSTEM_PRIORITY_WEIGHTS.map((item) => `
-      <div class="system-weight-chip">
-        <div class="system-weight-title">${item.label}</div>
-        <div class="system-weight-value">${item.weight}%</div>
-      </div>
-    `).join('');
     $('baseWeightsChips').innerHTML = `
-      <div class="system-weights-wrap">${html}</div>
+      <div class="system-weights-wrap">
+        ${SYSTEM_PRIORITY_WEIGHTS.map((item) => `
+          <div class="system-weight-chip">
+            <div class="system-weight-title">${item.label}</div>
+            <div class="system-weight-value">${item.weight}%</div>
+            <div class="system-weight-note">${item.note}</div>
+          </div>
+        `).join('')}
+      </div>
       <div class="system-weight-formula">
-        Итоговый вес = вес по давности ремонта + вес по покрытию + вес по объёму + вес по стоимости.
+        Итоговый вес = Σ (нормированный показатель × системный вес). Результат приводится к шкале 0–100.
       </div>
     `;
   }
@@ -1194,18 +1196,18 @@ function renderPriorityRule(rule) {
     node.innerHTML = `
       <div class="review-grid">
         <div class="review-box">
-          <h3>Шаг 1. Инструмент</h3>
+          <h3>Шаг 1. Выбор сценария</h3>
           <div class="review-list"><div>${escapeHtml((TOOL_OPTIONS.find(t=>t.code===state.tool)||{}).title || '')}</div></div>
         </div>
         <div class="review-box">
-          <h3>Шаг 2. Наборы</h3>
+          <h3>Шаг 2. Выбор исходных данных</h3>
           <div class="review-list">
             <div><strong>Анализируемый:</strong> ${escapeHtml(DATASETS[state.mainDataset].title)}</div>
             <div><strong>Сравниваемые:</strong> ${state.compareDatasets.map(c=>escapeHtml(DATASETS[c].title)).join(', ')}</div>
           </div>
         </div>
         <div class="review-box">
-          <h3>Шаг 3. Критерии</h3>
+          <h3>Шаг 3. Фильтрация данных</h3>
           <div class="review-list">${activeDatasetCodes().map((code, idx) => {
             const fallback = [14,53,13][idx % 3];
             const count = state.filters[code].allData ? fallback : Math.max(fallback, matchedCount(code) || 0);
@@ -1213,7 +1215,7 @@ function renderPriorityRule(rule) {
           }).join('')}</div>
         </div>
         <div class="review-box">
-          <h3>Шаг 4. Параметры</h3>
+          <h3>Шаг 4. Критерии моделирования</h3>
           <div class="review-list">
             <div>Срок службы: ${escapeHtml(state.parameters.serviceLifeMode==='normative' ? 'в соответствии с НПА' : state.parameters.serviceLifeMode==='single' ? 'единый срок '+state.parameters.serviceLifeSingle+' лет' : 'сроки по отдельным видам работ')}</div>
             <div>Процент непокрытой площади: ${escapeHtml(state.parameters.uncoveredMode==='single' ? describeRange(state.parameters.uncoveredSingle) : 'исключения по видам работ')}</div>
@@ -1268,6 +1270,8 @@ function renderPriorityRule(rule) {
     $('toolSection')?.classList.add('hidden');
     $('datasetsSection')?.classList.add('hidden');
     $('filtersSection')?.classList.add('hidden');
+    $('criteriaCard')?.classList.add('hidden');
+    $('parametersCard')?.classList.add('hidden');
     $('reviewCard')?.classList.add('hidden');
     $('resultsSection').classList.remove('hidden');
     state.currentStep = 5;
@@ -1364,6 +1368,7 @@ function renderResultsTable() {
     const baseColumns = APP.result.columns || [];
     const hiddenColumns = [
       'Давность ремонта',
+      'Процент непокрытой площади',
       'Покрытие к выполнению, %',
       'Примерный объём работ',
       'Примерная стоимость'
@@ -1387,14 +1392,14 @@ function renderResultsTable() {
       <tr data-result-index="${index}" class="${state.activeRowIndex === index ? 'is-active' : ''}">
         ${columns.map((col) => {
           if (col === 'Итоговый вес') {
-            return `<td class="numeric-cell"><span class="priority-score-badge ${row.__priorityBand}">${escapeHtml(row.__score)}</span></td>`;
+            return `<td class="numeric-cell"><div class="weight-summary"><span class="priority-score-badge ${row.__priorityBand}">${escapeHtml(row.__score)}</span></div></td>`;
           }
           if (['Вес по давности ремонта','Вес по покрытию','Вес по объёму','Вес по стоимости'].includes(col)) {
             const value = Number(row[col] || 0);
             return `<td class="numeric-cell"><span class="weight-cell ${bandClassByValue(value)}">${escapeHtml(value.toFixed(2))}</span></td>`;
           }
           const value = row[col] ?? '';
-          const display = col === RESULT_GEOMETRY_KEY ? `${escapeHtml(String(value).slice(0, 120))}…` : formatResultCell(col, value);
+          const display = col === RESULT_GEOMETRY_KEY ? escapeHtml(String(value).slice(0, 120)) + '…' : formatResultCell(col, value);
           const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', ['Давность ремонта','Покрытие к выполнению, %','Примерный объём работ','Примерная стоимость'].includes(col) ? 'numeric-cell' : ''].join(' ').trim();
           return `<td class="${cls}">${display}</td>`;
         }).join('')}
@@ -1406,6 +1411,7 @@ function renderResultsTable() {
     });
   }
 
+
   function bandClassByValue(value) {
     const num = Number(value) || 0;
     if (num >= 75) return 'high';
@@ -1415,8 +1421,7 @@ function renderResultsTable() {
 
 
   function formatResultCell(column, value) {
-    if (value == null || value === '') return '—';
-    if (column === RESULT_GEOMETRY_KEY) return `<code>${escapeHtml(String(value).slice(0, 160))}...</code>`;
+    if (value === null || value === undefined || value === '') return '';
     if (EXTRA_RESULT_COLUMNS.includes(column) || ['Примерная стоимость', 'Примерный объём работ'].includes(column)) {
       return escapeHtml(new Intl.NumberFormat('ru-RU').format(Number(value || 0)));
     }
