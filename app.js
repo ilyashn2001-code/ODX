@@ -1185,18 +1185,18 @@ function renderPriorityRule(rule) {
     node.innerHTML = `
       <div class="review-grid">
         <div class="review-box">
-          <h3>Шаг 1. Инструмент</h3>
+          <h3>Шаг 1. Выбор сценария</h3>
           <div class="review-list"><div>${escapeHtml((TOOL_OPTIONS.find(t=>t.code===state.tool)||{}).title || '')}</div></div>
         </div>
         <div class="review-box">
-          <h3>Шаг 2. Наборы</h3>
+          <h3>Шаг 2. Выбор исходных данных</h3>
           <div class="review-list">
             <div><strong>Анализируемый:</strong> ${escapeHtml(DATASETS[state.mainDataset].title)}</div>
             <div><strong>Сравниваемые:</strong> ${state.compareDatasets.map(c=>escapeHtml(DATASETS[c].title)).join(', ')}</div>
           </div>
         </div>
         <div class="review-box">
-          <h3>Шаг 3. Критерии</h3>
+          <h3>Шаг 3. Фильтрация данных</h3>
           <div class="review-list">${activeDatasetCodes().map((code, idx) => {
             const fallback = [14,53,13][idx % 3];
             const count = state.filters[code].allData ? fallback : Math.max(fallback, matchedCount(code) || 0);
@@ -1204,7 +1204,7 @@ function renderPriorityRule(rule) {
           }).join('')}</div>
         </div>
         <div class="review-box">
-          <h3>Шаг 4. Параметры</h3>
+          <h3>Шаг 4. Критерии моделирования</h3>
           <div class="review-list">
             <div>Срок службы: ${escapeHtml(state.parameters.serviceLifeMode==='normative' ? 'в соответствии с НПА' : state.parameters.serviceLifeMode==='single' ? 'единый срок '+state.parameters.serviceLifeSingle+' лет' : 'сроки по отдельным видам работ')}</div>
             <div>Процент непокрытой площади: ${escapeHtml(state.parameters.uncoveredMode==='single' ? describeRange(state.parameters.uncoveredSingle) : 'исключения по видам работ')}</div>
