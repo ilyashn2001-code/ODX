@@ -1055,7 +1055,3 @@ input:focus {
 @media (max-width: 760px){
   .system-weights-wrap{grid-template-columns:1fr}
 }
-
-.example-selector-field{margin-bottom:14px}
-.example-logic-box{border:1px solid var(--border); border-radius:16px; background:var(--panel-2); padding:14px 16px; margin-bottom:14px}
-.example-logic-title{font-weight:800; margin-bottom:8px}
