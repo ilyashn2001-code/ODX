@@ -10,10 +10,9 @@
   ];
   const DATASETS = {
     ogh: { code: 'ogh', title: 'Объекты городского хозяйства', short: 'ОГХ' },
-    sok: { code: 'sok', title: 'Планы работ по благоустройству «СОК»', short: 'СОК' },
-    mr: { code: 'mr', title: 'Планы работ по благоустройству «Мой район»', short: 'МР' }
+    krr: { code: 'krr', title: 'Планы работ по благоустройству «КРР»', short: 'КРР' }
   };
-  const DATASET_ORDER = ['ogh', 'sok', 'mr'];
+  const DATASET_ORDER = ['ogh', 'krr'];
   const STEPS = ['Выбор сценария', 'Выбор исходных данных', 'Фильтрация данных', 'Критерии моделирования', 'Получение результата'];
   const RESULT_GEOMETRY_KEY = 'Геометрия неблагоустроенной территории';
   const EXTRA_RESULT_COLUMNS = ['Примерный объём работ', 'Примерная стоимость'];
@@ -32,7 +31,7 @@
   const state = {
     tool: 'predictive',
     mainDataset: 'ogh',
-    compareDatasets: ['sok', 'mr'],
+    compareDatasets: ['krr'],
     filters: {},
     selections: {},
     useCustomWeights: false,
@@ -180,36 +179,29 @@
 
 
   function normalizeDatasetConfigs() {
-    const sokCols = datasetMeta('sok').columns || [];
-    const mrCols = datasetMeta('mr').columns || [];
+    const krrCols = datasetMeta('krr').columns || [];
 
-    const sokWork = sokCols.find((c) => c.code === 'Вид работ');
-    if (sokWork) {
-      sokWork.type = 'enum_multi';
-      sokWork.options = ASPHALT_WORK_TYPES.slice();
+    const krrWork = krrCols.find((c) => c.code === 'Вид работ');
+    if (krrWork) {
+      krrWork.type = 'enum_multi';
+      krrWork.options = ASPHALT_WORK_TYPES.slice();
     }
-    const mrWork = mrCols.find((c) => c.code === 'Вид работ');
-    if (mrWork) {
-      mrWork.type = 'enum_multi';
-      mrWork.options = ASPHALT_WORK_TYPES.slice();
-    }
-    const sokObject = sokCols.find((c) => c.code === 'Вид объекта благоустройства');
-    if (sokObject) {
-      sokObject.type = 'enum_multi';
-      sokObject.options = ['Объект дорожного хозяйства', 'Объекты комплексного благоустройства'];
+    const krrObject = krrCols.find((c) => c.code === 'Вид объекта благоустройства');
+    if (krrObject) {
+      krrObject.type = 'enum_multi';
+      krrObject.options = ['Объект дорожного хозяйства', 'Объекты комплексного благоустройства'];
     }
   }
 
   function resetState() {
     state.tool = 'predictive';
     state.mainDataset = 'ogh';
-    state.compareDatasets = ['ogh', 'sok', 'mr'];
+    state.compareDatasets = ['krr'];
     state.filters = {
       ogh: createGroup('ogh'),
-      sok: createGroup('sok'),
-      mr: createGroup('mr')
+      krr: createGroup('krr')
     };
-    state.selections = { ogh: [], sok: [], mr: [] };
+    state.selections = { ogh: [], krr: [] };
     state.useCustomWeights = false;
     state.priorityEditable = false;
     state.priorityRules = [createPriorityRule('result')];
