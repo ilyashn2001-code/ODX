@@ -27,6 +27,11 @@
     'Ремонт покрытия асфальтобетонного проезда в рамках благоустройства территории',
     'Устройство покрытия асфальтобетонного проезда в рамках благоустройства территории'
   ];
+  const WORK_TYPE_RATES = {
+    repair: { label: 'Ремонт покрытия', shortLabel: 'ремонт покрытия', rate: 550 },
+    replacement: { label: 'Замена покрытия', shortLabel: 'замена покрытия', rate: 700 },
+    installation: { label: 'Устройство покрытия', shortLabel: 'устройство покрытия', rate: 1100 }
+  };
 
   const state = {
     tool: 'predictive',
@@ -871,6 +876,18 @@ function renderDatasetPickers() {
     return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: digits }).format(Number(value || 0));
   }
 
+  function formatArea(value, digits = 0) {
+    return `${formatNumberRu(value, digits)} м²`;
+  }
+
+  function formatCurrencyRub(value, digits = 0) {
+    return `${formatNumberRu(value, digits)} ₽`;
+  }
+
+  function formatCurrencyMln(value, digits = 1) {
+    return `${formatNumberRu((Number(value) || 0) / 1000000, digits)} млн ₽`;
+  }
+
   function renderBaseWeights() {
     $('baseWeightsChips').innerHTML = SYSTEM_PRIORITY_WEIGHTS
       .map((item) => `<span class="chip weight-chip ${item.colorClass}">${item.label} — ${item.weight}%</span>`)
@@ -907,7 +924,8 @@ function renderDatasetPickers() {
       }
     };
 
-    const example = rows[state.activeRowIndex] || rows[0];
+    const activeIndex = rows[state.activeRowIndex] ? state.activeRowIndex : 0;
+    const example = rows[activeIndex] || rows[0];
     const exampleName = sanitizeText(example['Наименование'] || example['ИД ОГХ'] || 'Объект');
 
     panel.innerHTML = `
@@ -937,17 +955,17 @@ function renderDatasetPickers() {
             <div class="priority-metric-card volume">
               <h3>3. Примерный объём работ</h3>
               <p>Показывает ориентировочный объём оставшихся работ.</p>
-              <div class="formula-line">Используется логарифм: log(1 + x)</div>
-              <div class="formula-line">После этого применяется min-max нормирование</div>
-              <div class="formula-range">Диапазон в текущем результате: от ${formatNumberRu(ranges.volume.min, 0)} до ${formatNumberRu(ranges.volume.max, 0)}</div>
+              <div class="formula-line">Объём = площадь неблагоустроенной территории, округлённая до целых м²</div>
+              <div class="formula-line">Для расчёта приоритета используется log(1 + x), затем min-max нормирование</div>
+              <div class="formula-range">Диапазон в текущем результате: от ${formatArea(ranges.volume.min, 0)} до ${formatArea(ranges.volume.max, 0)}</div>
               <div class="formula-weight">Вес критерия: 20%</div>
             </div>
             <div class="priority-metric-card cost">
               <h3>4. Примерная стоимость</h3>
               <p>Показывает ориентировочную стоимость выполнения работ.</p>
-              <div class="formula-line">Используется логарифм: log(1 + x)</div>
-              <div class="formula-line">После этого применяется min-max нормирование</div>
-              <div class="formula-range">Диапазон в текущем результате: от ${formatNumberRu(ranges.cost.min, 0)} до ${formatNumberRu(ranges.cost.max, 0)}</div>
+              <div class="formula-line">Стоимость = примерный объём × ставка за 1 м² по рекомендуемому виду работ</div>
+              <div class="formula-line">Для расчёта приоритета используется log(1 + x), затем min-max нормирование</div>
+              <div class="formula-range">Диапазон в текущем результате: от ${formatCurrencyRub(ranges.cost.min, 0)} до ${formatCurrencyRub(ranges.cost.max, 0)}</div>
               <div class="formula-weight">Вес критерия: 15%</div>
             </div>
           </div>
@@ -960,6 +978,23 @@ function renderDatasetPickers() {
       <details class="priority-details">
         <summary>Пример расчёта по объекту: ${escapeHtml(exampleName)}</summary>
         <div class="priority-details-body">
+          <label class="field example-selector-field">
+            <span class="field-label">Выберите объект для примера расчёта</span>
+            <select id="priorityExampleSelect">
+              ${rows.map((row, index) => {
+                const name = sanitizeText(row['Наименование'] || row['ИД ОГХ'] || `Объект ${index + 1}`);
+                return `<option value="${index}" ${index === activeIndex ? 'selected' : ''}>${escapeHtml(name)}</option>`;
+              }).join('')}
+            </select>
+          </label>
+          <div class="example-logic-box">
+            <div class="example-logic-title">Как система выбрала объём и стоимость</div>
+            <div class="formula-line">Рекомендуемый вид работ: <strong>${escapeHtml(example['Рекомендуемый вид работ'] || '—')}</strong></div>
+            <div class="formula-line">Основание: ${escapeHtml(example['Основание подбора вида работ'] || '—')}</div>
+            <div class="formula-line">Ставка: ${formatCurrencyRub(example['Ставка за 1 м², ₽'], 0)} за 1 м²</div>
+            <div class="formula-line">Примерный объём = площадь неблагоустроенной территории = ${formatArea(example['Примерный объём работ'], 0)}</div>
+            <div class="formula-line">Примерная стоимость = ${formatArea(example['Примерный объём работ'], 0)} × ${formatCurrencyRub(example['Ставка за 1 м², ₽'], 0)} = ${formatCurrencyRub(example['Примерная стоимость'], 0)}</div>
+          </div>
           <div class="example-grid">
             <div class="example-row">
               <div class="example-label">Давность ремонта</div>
@@ -975,13 +1010,13 @@ function renderDatasetPickers() {
             </div>
             <div class="example-row">
               <div class="example-label">Примерный объём работ</div>
-              <div class="example-raw">Исходное значение: ${formatNumberRu(example['Примерный объём работ'], 0)}</div>
+              <div class="example-raw">Исходное значение: ${formatArea(example['Примерный объём работ'], 0)}</div>
               <div class="example-mid">После log + min-max: ${formatNumberRu(example.__normVolume)}</div>
               <div class="example-result">Вес: ${formatNumberRu(example['Вес по объёму'])}</div>
             </div>
             <div class="example-row">
               <div class="example-label">Примерная стоимость</div>
-              <div class="example-raw">Исходное значение: ${formatNumberRu(example['Примерная стоимость'], 0)}</div>
+              <div class="example-raw">Исходное значение: ${formatCurrencyRub(example['Примерная стоимость'], 0)}</div>
               <div class="example-mid">После log + min-max: ${formatNumberRu(example.__normCost)}</div>
               <div class="example-result">Вес: ${formatNumberRu(example['Вес по стоимости'])}</div>
             </div>
@@ -992,6 +1027,11 @@ function renderDatasetPickers() {
         </div>
       </details>
     `;
+
+    $('priorityExampleSelect')?.addEventListener('change', (e) => {
+      state.activeRowIndex = Number(e.target.value) || 0;
+      renderPriorityExplain();
+    });
   }
 
   function renderPriorityPanel() {
@@ -1407,10 +1447,31 @@ function renderPriorityRule(rule) {
 
 
   function deriveEstimateFields(row) {
-    const area = normalizeNumber(row['Площадь неблагоустроенной территории']) || normalizeNumber(row['Площадь']) || 0;
-    const volume = Math.round(area * 1.08);
-    const cost = Math.round(volume * 3200);
+    const totalArea = normalizeNumber(row['Площадь']) || 0;
+    const uncoveredAreaRaw = normalizeNumber(row['Площадь неблагоустроенной территории']) || totalArea || 0;
+    const uncoveredArea = Math.max(0, Math.min(uncoveredAreaRaw, totalArea || uncoveredAreaRaw));
+    const coveragePct = totalArea ? (uncoveredArea / totalArea) * 100 : 0;
+    const startDate = normalizeDate(row['Дата начала']);
+    const startYear = startDate ? startDate.getFullYear() : null;
+    const serviceLife = normalizeNumber(row['межремонтный срок']);
+
+    let workType = WORK_TYPE_RATES.repair;
+    let reason = 'По умолчанию для асфальтового ОДХ система рекомендует ремонт покрытия: покрытие существует, а доля неблагоустроенной площади не критическая.';
+
+    if ((coveragePct >= 85 && startYear && startYear >= 2024) || (!serviceLife && coveragePct >= 85)) {
+      workType = WORK_TYPE_RATES.installation;
+      reason = 'Выбрано устройство покрытия: объект выглядит как новый или без подтверждённой истории работ, при этом требуется благоустройство почти всей площади.';
+    } else if (coveragePct >= 50) {
+      workType = WORK_TYPE_RATES.replacement;
+      reason = 'Выбрана замена покрытия: доля неблагоустроенной площади высокая, поэтому локального ремонта недостаточно.';
+    }
+
+    const volume = Math.round(uncoveredArea);
+    const cost = Math.round(volume * workType.rate);
     return {
+      'Рекомендуемый вид работ': workType.label,
+      'Основание подбора вида работ': reason,
+      'Ставка за 1 м², ₽': workType.rate,
       'Примерный объём работ': volume,
       'Примерная стоимость': cost
     };
@@ -1477,8 +1538,8 @@ coverage = Math.max(0, Math.min(coverage, 100));
       const reasons = [
         `Давность ремонта: ${row['Давность ремонта']} → нормированное значение ${formatNumberRu(normAge)} → вклад ${formatNumberRu(ageWeight)}`,
         `Покрытие к выполнению: ${formatNumberRu(row['Покрытие к выполнению, %'])}% → нормированное значение ${formatNumberRu(normCoverage)} → вклад ${formatNumberRu(coverageWeight)}`,
-        `Примерный объём работ: ${formatNumberRu(row['Примерный объём работ'], 0)} → нормированное значение ${formatNumberRu(normVolume)} → вклад ${formatNumberRu(volumeWeight)}`,
-        `Примерная стоимость: ${formatNumberRu(row['Примерная стоимость'], 0)} → нормированное значение ${formatNumberRu(normCost)} → вклад ${formatNumberRu(costWeight)}`
+        `Примерный объём работ: ${formatArea(row['Примерный объём работ'], 0)} → нормированное значение ${formatNumberRu(normVolume)} → вклад ${formatNumberRu(volumeWeight)}`,
+        `Примерная стоимость: ${formatCurrencyRub(row['Примерная стоимость'], 0)} → нормированное значение ${formatNumberRu(normCost)} → вклад ${formatNumberRu(costWeight)}`
       ];
 
       (state.priorityRules || []).forEach((rule) => {
@@ -1526,18 +1587,12 @@ coverage = Math.max(0, Math.min(coverage, 100));
 function renderSummaryCards() {
     const totalVolume = state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Примерный объём работ']) || 0), 0);
     const totalCost = state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Примерная стоимость']) || 0), 0);
-    const avgUncovered = state.scoredResults.length
-      ? state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Процент непокрытой площади']) || 0), 0) / state.scoredResults.length
-      : 0;
-    const avgPriority = state.scoredResults.length
-      ? state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row.__score) || 0), 0) / state.scoredResults.length
-      : 0;
 
     const cards = [
-      { title: 'Объекты в результате', value: state.scoredResults.length, note: 'Итоговый реестр после применения параметров результата' },
-      { title: 'Рекомендуемый объём', value: new Intl.NumberFormat('ru-RU').format(Math.round(totalVolume)), note: 'Суммарный объём по всем объектам' },
-      { title: 'Примерная стоимость', value: new Intl.NumberFormat('ru-RU').format(Math.round(totalCost)), note: 'Суммарная оценка по всем объектам' },
-      { title: 'Площадь к благоустройству', value: new Intl.NumberFormat('ru-RU').format(Math.round(state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Площадь неблагоустроенной территории']) || 0), 0))), note: 'Суммарная предполагаемая площадь к благоустройству' }
+      { title: 'Объекты в результате', value: new Intl.NumberFormat('ru-RU').format(state.scoredResults.length), note: 'Итоговый реестр после применения параметров результата' },
+      { title: 'Рекомендуемый объём, м²', value: formatArea(Math.round(totalVolume), 0), note: 'Суммарный объём по всем объектам' },
+      { title: 'Примерная стоимость, млн ₽', value: formatCurrencyMln(totalCost, 1), note: 'Суммарная оценка по всем объектам' },
+      { title: 'Площадь к благоустройству, м²', value: formatArea(Math.round(state.scoredResults.reduce((sum, row) => sum + (normalizeNumber(row['Площадь неблагоустроенной территории']) || 0), 0)), 0), note: 'Суммарная предполагаемая площадь к благоустройству' }
     ];
     $('resultSummaryCards').innerHTML = cards.map((card) => `
       <div class="summary-card">
@@ -1551,21 +1606,24 @@ function renderSummaryCards() {
   
 function renderResultsTable() {
     const baseColumns = APP.result.columns || [];
-    const hiddenColumns = ['Давность ремонта', 'Покрытие к выполнению, %', 'Примерный объём работ', 'Примерная стоимость'];
+    const hiddenColumns = ['Давность ремонта', 'Покрытие к выполнению, %', 'Примерный объём работ', 'Примерная стоимость', 'Рекомендуемый вид работ', 'Основание подбора вида работ', 'Ставка за 1 м², ₽'];
     const columns = [
       'Индекс приоритета',
       'Давность ремонта',
       'Вес по давности ремонта',
       'Покрытие к выполнению, %',
       'Вес по покрытию',
-      'Примерный объём работ',
+      'Рекомендуемый вид работ',
+      'Ставка за 1 м², ₽',
+      'Примерный объём работ, м²',
       'Вес по объёму',
-      'Примерная стоимость',
+      'Примерная стоимость, ₽',
       'Вес по стоимости',
+      'Основание подбора вида работ',
       ...baseColumns.filter((c) => !hiddenColumns.includes(c))
     ];
 
-    $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th class="${['Индекс приоритета','Давность ремонта','Вес по давности ремонта','Покрытие к выполнению, %','Вес по покрытию','Примерный объём работ','Вес по объёму','Примерная стоимость','Вес по стоимости'].includes(col) ? 'numeric-cell' : ''}">${escapeHtml(col)}</th>`).join('')}</tr>`;
+    $('resultsHead').innerHTML = `<tr>${columns.map((col) => `<th class="${['Индекс приоритета','Давность ремонта','Вес по давности ремонта','Покрытие к выполнению, %','Вес по покрытию','Ставка за 1 м², ₽','Примерный объём работ, м²','Вес по объёму','Примерная стоимость, ₽','Вес по стоимости'].includes(col) ? 'numeric-cell' : ''}">${escapeHtml(col)}</th>`).join('')}</tr>`;
 
     $('resultsBody').innerHTML = state.scoredResults.map((row, index) => `
       <tr data-result-index="${index}" class="${state.activeRowIndex === index ? 'is-active' : ''}">
@@ -1577,9 +1635,10 @@ function renderResultsTable() {
             const value = Number(row[col] || 0);
             return `<td class="numeric-cell"><span class="weight-cell ${bandClassByValue(value)}">${escapeHtml(formatNumberRu(value))}</span></td>`;
           }
-          const value = row[col] ?? '';
-          const display = col === RESULT_GEOMETRY_KEY ? escapeHtml(String(value).slice(0, 120)) + '…' : formatResultCell(col, value);
-          const cls = [col === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', ['Индекс приоритета','Давность ремонта','Покрытие к выполнению, %','Примерный объём работ','Примерная стоимость'].includes(col) ? 'numeric-cell' : ''].join(' ').trim();
+          const rawColumn = col === 'Примерный объём работ, м²' ? 'Примерный объём работ' : col === 'Примерная стоимость, ₽' ? 'Примерная стоимость' : col;
+          const value = row[rawColumn] ?? '';
+          const display = rawColumn === RESULT_GEOMETRY_KEY ? escapeHtml(String(value).slice(0, 120)) + '…' : formatResultCell(col, value);
+          const cls = [rawColumn === RESULT_GEOMETRY_KEY ? 'wkt-cell' : '', ['Индекс приоритета','Давность ремонта','Покрытие к выполнению, %','Ставка за 1 м², ₽','Примерный объём работ, м²','Примерная стоимость, ₽'].includes(col) ? 'numeric-cell' : ''].join(' ').trim();
           return `<td class="${cls}">${display}</td>`;
         }).join('')}
       </tr>
@@ -1600,25 +1659,17 @@ function renderResultsTable() {
 
   function formatResultCell(column, value) {
     if (value === null || value === undefined || value === '') return '';
-    if (EXTRA_RESULT_COLUMNS.includes(column) || ['Примерная стоимость', 'Примерный объём работ'].includes(column)) {
-      return escapeHtml(formatNumberRu(value, 0));
+    if (['Примерный объём работ', 'Примерный объём работ, м²'].includes(column)) {
+      return escapeHtml(formatArea(value, 0));
+    }
+    if (['Примерная стоимость', 'Примерная стоимость, ₽', 'Ставка за 1 м², ₽'].includes(column)) {
+      return escapeHtml(formatCurrencyRub(value, 0));
     }
     if (['Индекс приоритета','Давность ремонта','Вес по давности ремонта','Покрытие к выполнению, %','Вес по покрытию','Вес по объёму','Вес по стоимости'].includes(column)) {
       return escapeHtml(formatNumberRu(value));
     }
-    return escapeHtml(sanitizeText(value));
-  }
-
-  function ensureMap() {
-    if (state.map) return;
-    state.map = L.map('map', { zoomControl: true }).setView([55.75, 37.62], 11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(state.map);
-  }
-
-  function renderMapLegend() {
-    $('mapLegend').innerHTML = `
-      <div class="legend-item"><span class="legend-swatch" style="background:#2563eb"></span> Предполагаемая территория к благоустройству</div>
-    `;
+    if (String(value).includes('<span')) return value;
+    return escapeHtml(String(value));
   }
 
   function colorForBand(band) {
