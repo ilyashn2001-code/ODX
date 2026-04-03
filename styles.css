@@ -1055,3 +1055,67 @@ input:focus {
 @media (max-width: 760px){
   .system-weights-wrap{grid-template-columns:1fr}
 }
+
+.example-selector {
+  margin-bottom: 14px;
+  max-width: 520px;
+}
+
+.calc-explain-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--panel-2);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.calc-explain-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.calc-explain-grid div {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  padding: 12px 14px;
+}
+
+.calc-explain-grid span {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.calc-explain-grid strong {
+  display: block;
+  font-size: 18px;
+}
+
+.calc-reason {
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+.calc-formula-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.calc-formula-list div {
+  border-left: 3px solid #bfd6fb;
+  padding-left: 10px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .calc-explain-grid {
+    grid-template-columns: 1fr;
+  }
+}
